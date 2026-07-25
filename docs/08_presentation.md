@@ -1,0 +1,110 @@
+# Document 08: Presentation Package & Executive Pitch
+
+**Barclays Innovation Lab Proposal**  
+**Author**: Principal Security Architect, Barclays Innovation Lab  
+
+---
+
+## 21. Presentation-Ready Diagrams
+
+### 21.1 Core Architectural Shift
+
+```
+    TRADITIONAL CHANNEL SECURITY               PROPOSED MESSAGE-CENTRIC QSC
+   
+    [ Client ]                                  [ Client ]
+        │                                           │
+   ================ TLS Tunnel                 ============ Create QSC Capsule
+        │                                           │  - Encrypt (ML-KEM + AES)
+    [ Gateway (Decrypt) ]                           │  - Sign (ML-DSA)
+        │                                           │  - Lock (SHA3 Integrity)
+   ================ Plaintext MQ                    │
+        │                                      [ Transport: Any Channel ]
+    [ Core Banking ]                                (HTTPS / Kafka / MQ / SWIFT)
+                                                    │
+                                                [ Core Banking ]
+                                                    │  - Validate Capsule
+                                                    │  - Decrypt Payload
+```
+
+---
+
+## 22. 30-Second Elevator Pitch
+
+> *"Today, every financial communication protocol—from TLS to VPNs—secures the pipe, not the message. If an adversary harvests network traffic today, a future quantum computer will crack the tunnel and expose decades of Barclays payments, SWIFT instructions, and customer data.*
+>
+> *Our solution is the **Quantum Security Capsule (QSC)**. Instead of securing the tunnel, we turn every individual message into an autonomous digital safe—encrypted with ML-KEM, signed with ML-DSA, locked with SHA3 integrity, and protected against replay attacks. Even if someone records our network traffic for ten years, they still have to break every single capsule independently. We make the network irrelevant."*
+
+---
+
+## 23. 5-Minute Presentation Script
+
+**Title:** Quantum Security Capsule (QSC): Message-Centric Post-Quantum Defense for Barclays  
+**Speaker:** Principal Security Architect, Barclays Innovation Lab  
+**Target Audience:** Barclays Chief Information Security Officer (CISO), Chief Technology Officer (CTO), and Board Innovation Panel  
+
+---
+
+### [0:00 - 0:45] The Hidden Threat: Harvest Now, Decrypt Later
+"Good morning, members of the board and technology leadership team.
+
+Every day, Barclays processes billions of pounds in high-value payments, SWIFT instructions, internal API calls, and consumer mobile transactions. To protect this vast flow of wealth, we rely heavily on Transport Layer Security—TLS tunnels and VPNs.
+
+However, transport security has a fatal flaw: **it secures the pipe, not the payload**.
+
+Right now, hostile nation-states and sophisticated threat actors are passively sniffing and storing petabytes of encrypted Barclays network traffic. This is known as **Harvest Now, Decrypt Later**. In a few short years, Cryptographically Relevant Quantum Computers will break the RSA and Elliptic Curve cryptography underlying our TLS tunnels. When that happens, adversaries won't just breach one server—they will retroactively decrypt every historical message recorded over those tunnels."
+
+---
+
+### [0:45 - 1:45] Introducing the Quantum Security Capsule (QSC)
+"To solve this, Barclays Innovation Lab is proposing an architectural paradigm shift. We are moving away from channel-dependent security to **Quantum Security Capsule (QSC)**.
+
+Instead of asking *'How do we secure the communication channel?'*, QSC asks *'How do we make every individual message independently trustworthy and quantum-proof?'*
+
+Think of a Quantum Security Capsule as an immutable, self-contained digital safe traveling through the network. When a customer initiates a £50,000 transfer, or when our core banking system dispatches a SWIFT message, we don't just push it into a TLS tunnel.
+
+We feed the message into our **Capsule Builder**, which performs four immediate operations:
+1. It encapsulates an ephemeral symmetric key using **ML-KEM-768**—NIST’s final post-quantum key exchange standard (FIPS 203).
+2. It encrypts the payload using **AES-256-GCM**.
+3. It binds a cryptographic replay protection token using **SHA3-512** hashing and timestamp bounds.
+4. It signs the complete capsule using **ML-DSA-65**—NIST’s final lattice digital signature standard (FIPS 204).
+
+The result is a self-securing cryptographic object."
+
+---
+
+### [1:45 - 3:00] How It Works in Practice across Barclays Infrastructure
+"Why is this revolutionary for Barclays? Because **it makes the underlying network almost irrelevant**.
+
+Because the capsule carries its own encryption, integrity lock, and post-quantum signature, it can travel across **any transport layer**:
+- Over public HTTPS APIs
+- Across inter-region Apache Kafka event streams
+- Through legacy IBM MQ queues
+- Over SWIFT messaging rails
+
+When the capsule reaches its target destination, the **Capsule Validator** inspects it before decryption. It checks lifetime expiry, verifies the replay token against our high-speed cache, re-computes the SHA3-512 integrity digest, and verifies the ML-DSA signature using the sender's public key.
+
+Only when **100% of validation checks pass** does the Secure Receiver invoke ML-KEM decapsulation and decrypt the payload.
+
+If an attacker captures this traffic today and attempts to crack it ten years from now, they face an impossible task: they cannot modify it, they cannot replay it, they cannot forge sender signatures, and they cannot decrypt it—because every message is an independent quantum fortress."
+
+---
+
+### [3:00 - 4:15] Performance, Compliance & Strategic Advantage
+"From a performance standpoint, QSC is engineered for production financial scale. End-to-end capsule assembly and validation takes just **1.0 millisecond** on standard server hardware, adding sub-5 KB byte overhead per payload.
+
+It complies 100% with NIST’s August 2024 final FIPS 203, FIPS 204, and FIPS 202 standards, positioning Barclays as an immediate leader in post-quantum regulatory compliance ahead of PRA and FCA mandates.
+
+Unlike Hybrid TLS, which requires massive endpoint socket upgrades and leaves internal microservices exposed at API proxies, QSC can be deployed incrementally as an enterprise software development kit (SDK) inside our microservices and mobile apps."
+
+---
+
+### [4:15 - 5:00] Conclusion & Call to Action
+"To summarize:
+Hybrid TLS secures the tunnel for the moment. **Quantum Security Capsules secure the data for decades.**
+
+We have built a fully functional reference implementation and test harness demonstrating end-to-end wire transfer encapsulation, instant replay attack mitigation, and post-quantum verification.
+
+We request approval to launch Phase 1 pilot integration across our high-value payment gateways and enterprise Kafka pipelines.
+
+Thank you, and I look forward to your questions."
