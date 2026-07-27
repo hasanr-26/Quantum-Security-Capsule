@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quantum Security Capsule (QSC) - Interactive Security Workbench</title>
+    <title>Quantum Security Capsule (QSC) - Interactive Cryptographic Workbench</title>
     <style>
         * {
             box-sizing: border-box;
@@ -60,6 +60,7 @@
             border: 1px solid #334155;
             border-radius: 8px;
             padding: 20px;
+            margin-bottom: 24px;
         }
 
         .card-title {
@@ -110,8 +111,16 @@
 
         textarea {
             font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-            height: 90px;
+            height: 110px;
             resize: vertical;
+        }
+
+        .editable-json {
+            height: 220px;
+            font-size: 12px;
+            color: #38bdf8;
+            background-color: #0b1329;
+            border: 1px solid #38bdf8;
         }
 
         input:focus, textarea:focus {
@@ -145,20 +154,6 @@
         .btn-danger { background-color: #dc2626; color: #ffffff; }
         .btn-warning { background-color: #d97706; color: #ffffff; }
         .btn-secondary { background-color: #475569; color: #ffffff; }
-
-        .wire-box {
-            background-color: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 6px;
-            padding: 12px;
-            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-            font-size: 12px;
-            max-height: 380px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-all;
-            color: #e2e8f0;
-        }
 
         .data-row {
             display: flex;
@@ -212,6 +207,66 @@
 
         .result-msg {
             font-size: 13px;
+            white-space: pre-wrap;
+        }
+
+        .step-container {
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .step-item {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 13px;
+        }
+
+        .step-item.pass {
+            border-left: 4px solid #16a34a;
+        }
+
+        .step-item.fail {
+            border-left: 4px solid #dc2626;
+        }
+
+        .step-header {
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .step-pass-tag { color: #4ade80; }
+        .step-fail-tag { color: #f87171; }
+
+        .step-details {
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 4px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .table-custom {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .table-custom th, .table-custom td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+
+        .table-custom th {
+            color: #94a3b8;
+            background-color: #0f172a;
         }
 
         .section-header {
@@ -226,7 +281,7 @@
     <div class="container">
         <header>
             <h1>Barclays Innovation Lab — Quantum Security Capsule (QSC)</h1>
-            <div class="subtitle">Interactive Post-Quantum Cryptographic Protocol & Threat Testing Workbench (NIST FIPS 203 ML-KEM-768 / FIPS 204 ML-DSA-65)</div>
+            <div class="subtitle">Interactive Cryptographic Protocol & Live Step-by-Step Transparency Workbench (NIST FIPS 203 ML-KEM-768 / FIPS 204 ML-DSA-65)</div>
         </header>
 
         <div class="grid">
@@ -263,41 +318,30 @@
                 </div>
             </div>
 
-            <!-- PANEL 2: CAPSULE METADATA & WIRE FORMAT -->
+            <!-- PANEL 2: EDITABLE RAW PACKET EDITOR -->
             <div class="card">
                 <div class="card-title">
-                    <span>2. Live Capsule Wire Data</span>
+                    <span>2. Live Editable Wire Packet (Arbitrary Byte Test)</span>
                     <span class="badge" id="latency-badge">No Capsule Built</span>
                 </div>
 
-                <div id="capsule-summary">
-                    <div class="data-row">
-                        <span class="data-label">Capsule ID</span>
-                        <span class="data-value" id="disp-capsule-id">-</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Replay Token (SHA3)</span>
-                        <span class="data-value" id="disp-replay-token">-</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">ML-DSA-65 Signature</span>
-                        <span class="data-value" id="disp-sig">-</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">ML-KEM-768 Ciphertext</span>
-                        <span class="data-value" id="disp-kem">-</span>
-                    </div>
+                <p style="font-size: 12px; color: #94a3b8; margin-bottom: 8px;">
+                    <strong>Proves Cryptography is Real & Not Hardcoded:</strong> Edit <i>any character</i> below (e.g. change 1 byte in <code>payload_ciphertext</code>, edit <code>signature</code>, or tamper <code>issued_at</code>), then click <strong>"Test-Verify Custom Packet"</strong>.
+                </p>
+
+                <div class="form-group">
+                    <textarea id="raw_json_textarea" class="editable-json" placeholder="// Build a capsule to display raw JSON packet here..."></textarea>
                 </div>
 
-                <div style="margin-top: 12px;">
-                    <label>Full Raw Wire JSON</label>
-                    <div class="wire-box" id="raw-json-box">// Build a capsule to view wire payload</div>
+                <div class="btn-group">
+                    <button class="btn-warning" onclick="verifyRawPacket()">🧪 Test-Verify Custom Raw Packet</button>
+                    <button class="btn-secondary" onclick="fetchReplayCache()">📋 View Replay Cache</button>
                 </div>
             </div>
         </div>
 
         <!-- PANEL 3: RECEIVER & THREAT TESTING LAB -->
-        <h2 class="section-header">3. Receiver Node & Interactive Threat Simulation Lab</h2>
+        <h2 class="section-header">3. Receiver Node & Real-Time Execution Stepper</h2>
         
         <div class="card">
             <div class="card-title">
@@ -316,11 +360,32 @@
                 <button class="btn-secondary" onclick="runAttack('expired')">⌛ Attack: Expired Timestamp</button>
             </div>
 
-            <!-- RESULT DISPLAY -->
+            <!-- RESULT BANNER -->
             <div class="result-banner" id="result-box">
                 <div class="result-title" id="result-title"></div>
                 <div class="result-msg" id="result-msg"></div>
                 <div style="margin-top: 10px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px;" id="result-decrypted"></div>
+            </div>
+
+            <!-- STEP-BY-STEP DIAGNOSTIC STEPPER -->
+            <div id="diagnostic-stepper-container" style="margin-top: 20px; display: none;">
+                <h4 style="font-size: 14px; color: #cbd5e1; margin-bottom: 10px;">🔍 Live Step-by-Step Cryptographic Verification Pipeline:</h4>
+                <div class="step-container" id="diagnostic-steps-list"></div>
+            </div>
+
+            <!-- REPLAY CACHE TABLE -->
+            <div id="replay-cache-container" style="margin-top: 20px; display: none;">
+                <h4 style="font-size: 14px; color: #cbd5e1; margin-bottom: 6px;">📋 Core Receiver In-Memory Replay Protection Cache:</h4>
+                <table class="table-custom" id="replay-cache-table">
+                    <thead>
+                        <tr>
+                            <th>Replay Token Hash</th>
+                            <th>Expires At (UTC)</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="replay-cache-tbody"></tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -347,15 +412,11 @@
                     document.getElementById('latency-badge').innerText = `Built in ${data.elapsed_ms} ms`;
                     document.getElementById('latency-badge').className = 'badge badge-success';
                     
-                    document.getElementById('disp-capsule-id').innerText = data.capsule.capsule_id.substring(0, 18) + '...';
-                    document.getElementById('disp-replay-token').innerText = data.capsule.replay_token.substring(0, 18) + '...';
-                    document.getElementById('disp-sig').innerText = data.capsule.signature.substring(0, 18) + '...';
-                    document.getElementById('disp-kem').innerText = data.capsule.kem_ciphertext.substring(0, 18) + '...';
-                    
-                    document.getElementById('raw-json-box').innerText = JSON.stringify(data.capsule, null, 2);
+                    document.getElementById('raw_json_textarea').value = JSON.stringify(data.capsule, null, 2);
 
-                    // Reset result box
+                    // Reset result box & stepper
                     document.getElementById('result-box').className = 'result-banner';
+                    document.getElementById('diagnostic-stepper-container').style.display = 'none';
                 }
             } catch (err) {
                 alert('Error building capsule: ' + err);
@@ -367,15 +428,30 @@
                 alert('Please build a capsule first!');
                 return;
             }
+            // Delegate to verifyRawPacket using the current textarea JSON
+            await verifyRawPacket();
+        }
+
+        async function verifyRawPacket() {
+            const raw_json = document.getElementById('raw_json_textarea').value;
+            if (!raw_json.trim()) {
+                alert('Please build a capsule or paste a raw JSON packet first!');
+                return;
+            }
 
             try {
-                const res = await fetch('/api/verify_capsule', { method: 'POST' });
+                const res = await fetch('/api/verify_raw_packet', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ raw_json })
+                });
+
                 const data = await res.json();
 
                 const box = document.getElementById('result-box');
                 box.className = 'result-banner show ' + (data.success ? 'success' : 'error');
                 
-                document.getElementById('result-title').innerText = data.success ? '✅ SUCCESS: Capsule Validated & Decrypted' : '❌ REJECTED: Security Policy Violation';
+                document.getElementById('result-title').innerText = data.success ? '✅ SUCCESS: Capsule Validated & Decrypted' : '❌ REJECTED: Cryptographic Verification Failed';
                 document.getElementById('result-msg').innerText = `${data.status_message} (Execution time: ${data.elapsed_ms} ms)`;
                 
                 if (data.success && data.decrypted_payload) {
@@ -384,9 +460,40 @@
                 } else {
                     document.getElementById('result-decrypted').style.display = 'none';
                 }
+
+                // Render diagnostic stepper
+                if (data.diagnostic_steps) {
+                    renderStepper(data.diagnostic_steps);
+                }
+
             } catch (err) {
-                alert('Error verifying capsule: ' + err);
+                alert('Error verifying raw packet: ' + err);
             }
+        }
+
+        function renderStepper(steps) {
+            const container = document.getElementById('diagnostic-stepper-container');
+            const list = document.getElementById('diagnostic-steps-list');
+            list.innerHTML = '';
+
+            steps.forEach(step => {
+                const item = document.createElement('div');
+                item.className = 'step-item ' + (step.passed ? 'pass' : 'fail');
+
+                const header = document.createElement('div');
+                header.className = 'step-header';
+                header.innerHTML = `<span>${step.name}</span><span class="${step.passed ? 'step-pass-tag' : 'step-fail-tag'}">${step.passed ? 'PASSED ✓' : 'FAILED ✗'}</span>`;
+
+                const details = document.createElement('div');
+                details.className = 'step-details';
+                details.innerText = step.details;
+
+                item.appendChild(header);
+                item.appendChild(details);
+                list.appendChild(item);
+            });
+
+            container.style.display = 'block';
         }
 
         async function runAttack(attack_type) {
@@ -409,9 +516,44 @@
                 document.getElementById('result-title').innerText = `🛡️ ATTACK BLOCKED: ${data.attack_name}`;
                 document.getElementById('result-msg').innerText = `${data.attack_desc}\nReceiver Response: ${data.status_message}`;
                 document.getElementById('result-decrypted').style.display = 'none';
+                document.getElementById('diagnostic-stepper-container').style.display = 'none';
+
+                // Automatically refresh replay cache view if replay attack was tested
+                if (attack_type === 'replay') {
+                    fetchReplayCache();
+                }
 
             } catch (err) {
                 alert('Error simulating attack: ' + err);
+            }
+        }
+
+        async function fetchReplayCache() {
+            try {
+                const res = await fetch('/api/replay_cache');
+                const data = await res.json();
+                
+                const container = document.getElementById('replay-cache-container');
+                const tbody = document.getElementById('replay-cache-tbody');
+                tbody.innerHTML = '';
+
+                if (data.tokens.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" style="color: #94a3b8; text-align: center;">Replay protection cache is currently empty.</td></tr>';
+                } else {
+                    data.tokens.forEach(item => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td style="font-family: ui-monospace, monospace; color: #38bdf8;">${item.replay_token}</td>
+                            <td style="color: #cbd5e1;">${item.expires_at}</td>
+                            <td><span class="badge badge-error">CONSUMED & BLOCKED</span></td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+
+                container.style.display = 'block';
+            } catch (err) {
+                alert('Error fetching replay cache: ' + err);
             }
         }
 
