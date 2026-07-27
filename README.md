@@ -71,7 +71,14 @@ cd Quantum-Security-Capsule
 pip install -r requirements.txt
 ```
 
-### 2. Run Interactive Demos
+### 2. Run Interactive Security Workbench & Visualizer
+
+```bash
+# Launch Live Web Security Console (http://localhost:8000)
+python src/visualizer/app.py
+```
+
+### 3. Run Command-Line Demos
 
 ```bash
 # High-Value Interbank Wire Transfer Demo
@@ -81,7 +88,7 @@ python src/demo/banking_transfer.py
 python src/demo/replay_attack_demo.py
 ```
 
-### 3. Run Test Suite
+### 4. Run Test Suite
 
 ```bash
 pytest tests/ -v
