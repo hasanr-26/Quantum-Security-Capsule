@@ -1,11 +1,8 @@
-# Document 07: Comparison with Hybrid TLS & Future Roadmap
-
-**Barclays Innovation Lab Proposal**  
-**Author**: Principal Security Architect, Barclays Innovation Lab  
+# Document 07  
 
 ---
 
-## 19. Comprehensive Comparison: Hybrid TLS vs. Quantum Security Capsule (QSC)
+## 1. Comprehensive Comparison: Hybrid TLS vs. Quantum Security Capsule (QSC)
 
 | Feature / Dimension | Hybrid TLS 1.3 (NIST PQC + Classical TLS) | Quantum Security Capsule (QSC) Architecture |
 | :--- | :--- | :--- |
@@ -16,13 +13,14 @@
 | **Replay Defense** | Handled per session socket | Cryptographically bound per capsule via SHA3-512 & lifetime window |
 | **Transport Protocol Dependence** | Strictly tied to TCP/TLS socket session | Completely transport-agnostic (HTTPS, Kafka, MQ, SWIFT, File) |
 | **Non-Repudiation** | Endpoint identity authenticated | Individual message non-repudiation via per-capsule ML-DSA signature |
+| **Implementation Layer** | Low-level OS / Web server sockets | Enterprise Microservices SDK ([`src/capsule`](file:///c:/Users/hasan/antigravity/QSC/src/capsule)) |
 
 ---
 
-## 20. Future Roadmap (Mention Only, Not Core Solution)
+## 2. Future Technical Roadmap
 
-Future iterations of the Barclays Quantum Security Capsule architecture may explore:
+Future iterations of the Barclays Quantum Security Capsule architecture will expand upon:
 
-1. **Crypto-Agility Engine:** Modular runtime abstraction allowing seamless rotation from ML-KEM/ML-DSA to future NIST PQC round candidates without API breaking changes.
+1. **Crypto-Agility Engine:** Modular runtime abstraction allowing seamless rotation from ML-KEM/ML-DSA to future NIST PQC candidates (e.g. Falcon, Sphincs+) without breaking application API contracts.
 2. **AI-Assisted Risk Classification:** Machine learning models inspecting capsule header policy metadata to dynamically adjust lifetime validation windows based on fraud risk scores.
-3. **Hardware Security Module (HSM) & Secure Enclave Integration:** Direct hardware-backed ML-KEM key decapsulation inside AWS Nitro Enclaves or Thales PayShield HSMs.
+3. **Hardware Security Module (HSM) & Secure Enclave Integration:** Direct hardware-backed ML-KEM key decapsulation inside AWS Nitro Enclaves, ARM TrustZone, or Thales PayShield HSMs.

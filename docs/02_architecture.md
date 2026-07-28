@@ -1,14 +1,11 @@
-# Document 02: Architecture and Component Specifications
+# Document 02
 
-**Barclays Innovation Lab Proposal**  
-**Author**: Principal Security Architect, Barclays Innovation Lab  
 
----
 
-## 4. Existing Communication Architecture
+## 1. Existing Communication Architecture vs. QSC Architecture
 
 ### Legacy Transport-Centric Model
-In today's banking infrastructure, security is tied directly to network connections:
+In traditional financial IT infrastructure, security relies on connection tunnels established at edge proxies:
 
 ```
 +------------------+         Encrypted TLS Tunnel         +------------------+
@@ -21,124 +18,112 @@ In today's banking infrastructure, security is tied directly to network connecti
 +------------------+                                      +------------------+
 ```
 
-### Critical Deficiencies
-1. **Single Point of Compromise:** Decryption happens at the edge gateway. Internal networks remain vulnerable to insider threats and lateral movement.
-2. **Loss of Non-Repudiation at Storage:** Once data is written to databases or queues, transport security expires, leaving stored data unencrypted unless secondary encryption is manually bolted on.
-
----
-
-## 5. Proposed Quantum Security Capsule Architecture
-
-### Message-Centric Post-Quantum Paradigm
-The Quantum Security Capsule (QSC) architecture shifts security directly into the payload data payload itself. Each message becomes an autonomous, self-describing, post-quantum encrypted, signed, and time-bound digital container.
+### Proposed Quantum Security Capsule Paradigm
+QSC shifts security directly into the payload. Each message becomes an autonomous, self-describing, post-quantum encrypted, digitally signed, and time-locked container:
 
 ```
-                  Client Application
-                          │
-             ┌────────────┴────────────┐
-             ▼                         ▼
-      Message Payload            Policy Metadata
-             │                         │
-             └────────────┬────────────┘
-                          │
-               Quantum Capsule Builder
-     ┌────────────────────┼────────────────────┐
-     │                    │                    │
- Encrypt (AES-GCM)   Sign (ML-DSA)      Key Encapsulation (ML-KEM)
-     │                    │                    │
-     └────────────────────┼────────────────────┘
-                          │
-               Quantum Security Capsule
-                          │
-     ┌────────────────────┴────────────────────┐
-     │  Transmitted via REST / Kafka / MQ / TLS│
-     └────────────────────┬────────────────────┘
-                          │
-               Capsule Validator & Receiver
-     ┌────────────────────┼────────────────────┐
-  Verify Sig          Verify Hash          Decapsulate & Decrypt
-     └────────────────────┼────────────────────┘
-                          │
-                    Core Backend
+                  Sender Application / Client
+                              │
+                 ┌────────────┴────────────┐
+                 ▼                         ▼
+          Message Payload            Policy Metadata
+                 │                         │
+                 └────────────┬────────────┘
+                              │
+                    Quantum Capsule Builder ([builder.py](file:///c:/Users/hasan/antigravity/QSC/src/capsule/builder.py))
+         ┌────────────────────┼────────────────────┐
+         │                    │                    │
+     Encrypt (AES-GCM)   Sign (ML-DSA)      Key Encapsulation (ML-KEM)
+  ([symmetric.py](file:///c:/Users/hasan/antigravity/QSC/src/crypto/symmetric.py))     ([dsa.py](file:///c:/Users/hasan/antigravity/QSC/src/crypto/dsa.py))       ([kem.py](file:///c:/Users/hasan/antigravity/QSC/src/crypto/kem.py))
+         │                    │                    │
+         └────────────────────┼────────────────────┘
+                              │
+                   Quantum Security Capsule ([models.py](file:///c:/Users/hasan/antigravity/QSC/src/capsule/models.py))
+                              │
+         ┌────────────────────┴────────────────────┐
+         │  Transmitted via REST / Kafka / MQ / File│
+         └────────────────────┬────────────────────┘
+                              │
+                   Capsule Validator & Receiver ([validator.py](file:///c:/Users/hasan/antigravity/QSC/src/capsule/validator.py))
+         ┌────────────────────┼────────────────────┐
+      Verify Sig          Verify Hash          Decapsulate & Decrypt
+         └────────────────────┼────────────────────┘
+                              │
+                   Core Banking Backend / Receiver
 ```
 
 ---
 
-## 6. End-to-End Communication Workflow
+## 2. The 5 Core Components
+
+The QSC architecture consists of 5 modular components implemented in [`src/capsule`](file:///c:/Users/hasan/antigravity/QSC/src/capsule) and [`src/crypto`](file:///c:/Users/hasan/antigravity/QSC/src/crypto):
+
+### 1. Capsule Builder ([`builder.py`](file:///c:/Users/hasan/antigravity/QSC/src/capsule/builder.py))
+Assembles raw payment payloads or binary files into post-quantum capsules through a deterministic 7-step pipeline.
+
+### 2. PQC Key Encapsulation Engine ([`kem.py`](file:///c:/Users/hasan/antigravity/QSC/src/crypto/kem.py))
+Implements NIST FIPS 203 ([`ML-KEM-768`](file:///c:/Users/hasan/antigravity/QSC/src/crypto/kem.py)). Establishes a 256-bit symmetric shared secret between sender and receiver per message without interactive handshakes.
+
+### 3. PQC Digital Signature Engine ([`dsa.py`](file:///c:/Users/hasan/antigravity/QSC/src/crypto/dsa.py))
+Implements NIST FIPS 204 ([`ML-DSA-65`](file:///c:/Users/hasan/antigravity/QSC/src/crypto/dsa.py)). Computes lattice digital signatures over canonical SHA3-512 integrity hashes using the sender's private key, guaranteeing non-repudiation and origin authenticity.
+
+### 4. Capsule Validator ([`validator.py`](file:///c:/Users/hasan/antigravity/QSC/src/capsule/validator.py))
+Enforces mandatory zero-trust validation through a 5-stage pipeline before granting access to ciphertext.
+
+### 5. Secure Receiver ([`receiver.py`](file:///c:/Users/hasan/antigravity/QSC/src/capsule/receiver.py))
+Executes ML-KEM decapsulation to recover the symmetric encryption key, decrypts AES-256-GCM ciphertext, verifies tag validity, and forwards the plaintext payload.
+
+---
+
+## 3. The 7-Step Capsule Builder Pipeline
+
+When creating a capsule, [`CapsuleBuilder.build_capsule()`](file:///c:/Users/hasan/antigravity/QSC/src/capsule/builder.py) executes the following sequence:
 
 ```
-[ Sender Client ]                   [ Network Layer ]                  [ Target Receiver ]
-        │                                   │                                    │
-        ├─ 1. Assembles Transaction Payload  │                                    │
-        ├─ 2. Encapsulates Secret (ML-KEM)  │                                    │
-        ├─ 3. Encrypts Payload (AES-256-GCM)│                                    │
-        ├─ 4. Binds Timestamp & Replay Token│                                    │
-        ├─ 5. Signs Hash (ML-DSA-65)        │                                    │
-        │                                   │                                    │
-        ├──────────── Transmit QSC Container ───────────────────────────────────►│
-        │             (over HTTPS/MQ/Kafka) │                                    │
-        │                                   │                                    │
-        │                                   │  ┌─ 6. Validate Version & Lifetime │
-        │                                   │  ├─ 7. Check Replay Registry       │
-        │                                   │  ├─ 8. Re-compute SHA3-512 Hash    │
-        │                                   │  ├─ 9. Verify ML-DSA Signature     │
-        │                                   │  ├─ 10. Decapsulate ML-KEM Key     │
-        │                                   │  └─ 11. Decrypt AES-256-GCM        │
-        │                                   │                                    │
+[ Step 1: ID & Timestamps ]  --->  Generate Unique Capsule ID & ISO-8601 Timestamps (TTL: 300s)
+[ Step 2: ML-KEM-768 Key ]    --->  Encapsulate 256-bit Shared Secret (K) & Generate KEM Ciphertext
+[ Step 3: AES-256-GCM ]       --->  Encrypt Payload with K; Generate Nonce & GCM Auth Tag
+[ Step 4: Replay Token ]      --->  Compute SHA3-512 Replay Token (CapsuleID + Timestamp + Nonce)
+[ Step 5: Canonicalization ]  --->  Build Deterministic JSON Schema for Integrity Lock
+[ Step 6: SHA3-512 Digest ]   --->  Compute 512-bit Canonical Integrity Hash
+[ Step 7: ML-DSA-65 Sign ]    --->  Sign Integrity Hash with Sender Private Key
 ```
 
 ---
 
-## 7. Detailed Component Descriptions
+## 4. The 5-Stage Zero-Trust Validation Pipeline
 
-The QSC architecture consists of **exactly 5 core components**:
+Before decapsulating ciphertexts, [`CapsuleValidator.validate()`](file:///c:/Users/hasan/antigravity/QSC/src/capsule/validator.py) enforces 5 sequential security gates:
 
-### Component 1: Capsule Builder
-- **Role:** Assembles raw message payloads into post-quantum capsules.
-- **Functions:** Generates UUIDs, fetches receiver ML-KEM public key, invokes ML-KEM encapsulation, encrypts payload via AES-256-GCM, generates SHA3-512 replay token, builds canonical JSON, and signs with ML-DSA-65 private key.
-
-### Component 2: PQC Key Encapsulation Engine (ML-KEM)
-- **Role:** Implements NIST FIPS 203 (ML-KEM-768 / ML-KEM-1024).
-- **Functions:** Establishes a 256-bit symmetric shared secret between sender and recipient per message without requiring interactive key exchange handshakes.
-
-### Component 3: PQC Digital Signature Engine (ML-DSA)
-- **Role:** Implements NIST FIPS 204 (ML-DSA-65 / ML-DSA-87).
-- **Functions:** Computes lattice-based digital signatures over the capsule's canonical SHA3-512 integrity hash using the sender's private key, guaranteeing non-repudiation and authenticity.
-
-### Component 4: Capsule Validator
-- **Role:** Enforces mandatory zero-trust validation before granting access to ciphertext.
-- **Functions:** Inspects schema version, checks timestamp freshness against wall clock, queries distributed replay cache, re-calculates SHA3-512 digest, and verifies ML-DSA signature.
-
-### Component 5: Secure Receiver
-- **Role:** Decrypts validated capsules and dispatches payload to internal application logic.
-- **Functions:** Executes ML-KEM decapsulation to recover AES-256-GCM key, decrypts ciphertext, validates GCM authentication tag, and forwards plaintext.
+1. **Stage 1: Version & Schema Check:** Confirms `version == "QSC-1.0"`.
+2. **Stage 2: Timestamp & Expiry Check:** Verifies current time $\le$ `expires_at` using wall-clock validation ([`timestamp.py`](file:///c:/Users/hasan/antigravity/QSC/src/utils/timestamp.py)).
+3. **Stage 3: Replay Cache Verification:** Queries the replay registry ([`validator.py`](file:///c:/Users/hasan/antigravity/QSC/src/capsule/validator.py)) to ensure the `replay_token` has not been seen within the TTL window.
+4. **Stage 4: Canonical Integrity Verification:** Re-computes canonical SHA3-512 integrity hash from capsule fields and compares against `integrity_hash`.
+5. **Stage 5: ML-DSA-65 Signature Verification:** Verifies signature authenticity using sender public key ([`dsa.py`](file:///c:/Users/hasan/antigravity/QSC/src/crypto/dsa.py)).
 
 ---
 
-## 8. Internal Structure of a Quantum Security Capsule
+## 5. QSC Wire Format & Data Schema ([`models.py`](file:///c:/Users/hasan/antigravity/QSC/src/capsule/models.py))
 
-Each QSC object is formatted as a structured cryptographic payload (JSON over wire, CBOR for micro-latency binary queues):
-
-```
-+-----------------------------------------------------------------------+
-|                         HEADER & METADATA                             |
-|  - Version: QSC-1.0                                                   |
-|  - Capsule ID: qsc_99a81f3b7c2a41d0                                   |
-|  - Issued At: 2026-07-26T01:19:12Z                                    |
-|  - Expires At: 2026-07-26T01:24:12Z                                   |
-|  - Sender ID: barclays-mobile-0091                                    |
-|  - Recipient ID: barclays-swift-gateway                               |
-|  - Policy: { Classification: RESTRICTED, Max Hops: 2 }                |
-+-----------------------------------------------------------------------+
-|                    REPLAY & INTEGRITY LOCK                             |
-|  - Replay Token: SHA3-512(CapsuleID + Timestamp + Sender + Nonce)     |
-|  - Integrity Hash: SHA3-512(Canonical Header + Payload + Policy)       |
-+-----------------------------------------------------------------------+
-|                    POST-QUANTUM CRYPTOGRAPHIC BODY                    |
-|  - ML-KEM Ciphertext: Encapsulated Shared Key Payload (FIPS 203)      |
-|  - AES-256-GCM Nonce: 12-byte initialization vector                   |
-|  - Payload Ciphertext: Encrypted financial message                    |
-|  - GCM Auth Tag: 16-byte authentication tag                           |
-|  - ML-DSA Signature: Post-quantum lattice signature (FIPS 204)         |
-+-----------------------------------------------------------------------+
+```json
+{
+  "capsule_id": "qsc_99a81f3b7c2a41d0",
+  "version": "QSC-1.0",
+  "issued_at": "2026-07-28T11:50:00Z",
+  "expires_at": "2026-07-28T11:55:00Z",
+  "sender_id": "barclays-mobile-app-001",
+  "recipient_id": "barclays-core-ledger-002",
+  "policy": {
+    "classification": "RESTRICTED",
+    "max_hops": 2,
+    "allowed_networks": ["SWIFT", "KAFKA-CORE"]
+  },
+  "replay_token": "a4f89... (128 hex chars SHA3-512 digest)",
+  "kem_ciphertext": "7c12d... (Base64 ML-KEM-768 ciphertext, 1088 bytes)",
+  "aes_nonce": "91a2b... (Base64 12-byte GCM IV)",
+  "payload_ciphertext": "e8810... (Base64 AES-256-GCM encrypted payload)",
+  "gcm_tag": "33f01... (Base64 16-byte GCM authentication tag)",
+  "integrity_hash": "b9012... (128 hex chars canonical SHA3-512 digest)",
+  "signature": "d2218... (Base64 ML-DSA-65 lattice signature, 3309 bytes)"
+}
 ```
