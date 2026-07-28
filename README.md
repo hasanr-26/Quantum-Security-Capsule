@@ -128,4 +128,4 @@ All 23 requested deliverables are systematically covered across the `docs/` fold
 ---
 
 ## 📄 License
-Released under the MIT License. Developed for Barclays Post-Quantum Cryptography Innovation Challenge.
+Released under the MIT License. 
