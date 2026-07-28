@@ -96,31 +96,6 @@ pytest tests/ -v
 
 ---
 
-## 📂 Project Structure
-
-```
-QSC/
-├── CAPSULE_SPEC.md                   # Formal Wire Format Specification
-├── README.md                         # Project Overview & Quick Start
-├── requirements.txt                  # Dependencies
-├── docs/                             # Comprehensive Innovation Deliverables (1-23)
-│   ├── 01_vision_and_problem.md      # Deliverables 1–3 (Title, Vision, Problem)
-│   ├── 02_architecture.md            # Deliverables 4–8 (Architecture & Components)
-│   ├── 03_diagrams.md                # Deliverables 9–10 (ASCII & Sequence Diagrams)
-│   ├── 04_security_analysis.md       # Deliverables 11–12 (Security & Threat Model)
-│   ├── 05_advantages_performance.md  # Deliverables 13–15 (Advantages & Latency Metrics)
-│   ├── 06_compliance_deployment.md   # Deliverables 16–18 (NIST Compliance & Banking Use Cases)
-│   ├── 07_comparison_roadmap.md      # Deliverables 19–20 (vs Hybrid TLS & Future Roadmap)
-│   └── 08_presentation.md            # Deliverables 21–23 (Pitch Deck, Elevator & 5-min Script)
-├── src/                              # Source Implementation
-│   ├── crypto/                       # Cryptographic Primitives (ML-KEM, ML-DSA, AES-GCM, SHA3)
-│   ├── capsule/                      # Builder, Validator, Receiver, Data Models
-│   ├── demo/                         # Executable Banking Demos
-│   └── utils/                        # Timestamping & Replay Token Utilities
-└── tests/                            # PyTest Verification Suite
-```
-
----
 
 ## 📑 Complete Innovation Deliverables Index
 
