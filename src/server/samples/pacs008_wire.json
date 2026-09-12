@@ -1,0 +1,60 @@
+{
+  "Document": {
+    "@xmlns": "urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08",
+    "FIToFICstmrCdtTrf": {
+      "GrpHdr": {
+        "MsgId": "BARC-UK-2026-0912-99812",
+        "CreDtTm": "2026-09-12T18:30:00Z",
+        "NbOfTxs": "1",
+        "SttlmInf": {
+          "SttlmMtd": "CLRG",
+          "ClrSys": { "Prtry": "CHAPS_PQC" }
+        },
+        "InstgAgt": { "FinInstnId": { "BICFI": "BARCGB22XXX" } },
+        "InstdAgt": { "FinInstnId": { "BICFI": "HDFCINBBXXX" } }
+      },
+      "CdtTrfTxInf": {
+        "PmtId": {
+          "InstrId": "INSTR-BARC-991823",
+          "EndToEndId": "E2E-BARC-HDFC-889102",
+          "TxId": "TXN-991823",
+          "UETR": "7f8a1c3e-5b2d-4e91-a6f4-2c8b9d1e4a70"
+        },
+        "PmtTpInf": {
+          "InstrPrty": "HIGH",
+          "SvcLvl": { "Cd": "SEPA" },
+          "LclInstrm": { "Prtry": "CHAPS" }
+        },
+        "IntrBkSttlmAmt": { "value": 75000000.00, "currency": "GBP" },
+        "IntrBkSttlmDt": "2026-09-12",
+        "ChrgBr": "SHAR",
+        "Dbtr": {
+          "Nm": "GlaxoSmithKline Treasury UK",
+          "PstlAdr": {
+            "StrtNm": "980 Great West Road",
+            "TwnNm": "Brentford",
+            "PstCd": "TW8 9GS",
+            "Ctry": "GB"
+          },
+          "Id": { "OrgId": { "LEI": "5493000XYZ1234567890" } }
+        },
+        "DbtrAcct": { "Id": { "IBAN": "GB82BARC20000012345678" } },
+        "DbtrAgt": { "FinInstnId": { "BICFI": "BARCGB22XXX" } },
+        "CdtrAgt": { "FinInstnId": { "BICFI": "HDFCINBBXXX" } },
+        "Cdtr": {
+          "Nm": "Apollo Healthcare Infrastructure India Ltd",
+          "PstlAdr": {
+            "StrtNm": "21 Greams Lane, Off Greams Road",
+            "TwnNm": "Chennai",
+            "PstCd": "600006",
+            "Ctry": "IN"
+          }
+        },
+        "CdtrAcct": { "Id": { "IBAN": "IN45HDFC0001234567890" } },
+        "RmtInf": {
+          "Ustrd": "Invoice 8821 - Phase III Oncology Unit capital equipment tranche 2"
+        }
+      }
+    }
+  }
+}
