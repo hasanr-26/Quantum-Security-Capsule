@@ -3,6 +3,7 @@ from typing import Tuple
 
 from src.crypto import (
     decrypt_aes_256_gcm,
+    derive_payload_key,
     MLKEM768
 )
 from src.capsule.models import QuantumSecurityCapsule
@@ -54,13 +55,16 @@ class SecureReceiver:
                 ciphertext=kem_ct_bytes
             )
 
-            # Step 4: AES-256-GCM Decryption
+            # Step 4: Re-derive the content key (HKDF-SHA3-512)
+            content_key = derive_payload_key(shared_secret, capsule.capsule_id)
+
+            # Step 5: AES-256-GCM Decryption
             ciphertext_bytes = base64.b64decode(capsule.payload_ciphertext)
             nonce_bytes = base64.b64decode(capsule.nonce)
             tag_bytes = base64.b64decode(capsule.payload_tag)
 
             plaintext = decrypt_aes_256_gcm(
-                key=shared_secret,
+                key=content_key,
                 ciphertext=ciphertext_bytes,
                 nonce=nonce_bytes,
                 tag=tag_bytes,

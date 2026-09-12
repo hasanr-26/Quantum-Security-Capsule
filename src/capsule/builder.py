@@ -6,6 +6,7 @@ from src.crypto import (
     compute_sha3_512,
     canonicalize_json,
     encrypt_aes_256_gcm,
+    derive_payload_key,
     MLKEM768,
     MLDSA65
 )
@@ -49,9 +50,12 @@ class CapsuleBuilder:
         shared_secret, kem_ct_bytes = MLKEM768.encapsulate(recipient_public_kem_key)
         kem_ciphertext_b64 = base64.b64encode(kem_ct_bytes).decode('utf-8')
 
-        # 3. Symmetric Payload Encryption (AES-256-GCM)
+        # 3. Content Key Derivation (HKDF-SHA3-512, NIST SP 800-56C)
+        content_key = derive_payload_key(shared_secret, capsule_id)
+
+        # 4. Symmetric Payload Encryption (AES-256-GCM)
         ciphertext_bytes, nonce_bytes, tag_bytes = encrypt_aes_256_gcm(
-            key=shared_secret,
+            key=content_key,
             plaintext=payload,
             associated_data=capsule_id.encode('utf-8')
         )
@@ -60,10 +64,10 @@ class CapsuleBuilder:
         payload_tag_b64 = base64.b64encode(tag_bytes).decode('utf-8')
         nonce_b64 = base64.b64encode(nonce_bytes).decode('utf-8')
 
-        # 4. Replay Protection Token
+        # 5. Replay Protection Token
         replay_token = generate_replay_token(capsule_id, issued_at, self.sender_id, nonce_b64)
 
-        # 5. Preliminary Capsule Data Assembly
+        # 6. Preliminary Capsule Data Assembly
         pre_capsule = QuantumSecurityCapsule(
             version="QSC-1.0",
             capsule_id=capsule_id,
@@ -81,12 +85,12 @@ class CapsuleBuilder:
             policy=policy.__dict__ if isinstance(policy, PolicyMetadata) else policy
         )
 
-        # 6. Integrity Hash (SHA3-512 over canonical fields)
+        # 7. Integrity Hash (SHA3-512 over canonical fields)
         canonical_bytes = canonicalize_json(pre_capsule.get_canonical_fields())
         integrity_hash = compute_sha3_512(canonical_bytes)
         pre_capsule.integrity_hash = integrity_hash
 
-        # 7. Post-Quantum Digital Signature (ML-DSA-65 over integrity_hash)
+        # 8. Post-Quantum Digital Signature (ML-DSA-65 over integrity_hash)
         signature_bytes = MLDSA65.sign(self.sender_private_dsa_key, integrity_hash)
         signature_b64 = base64.b64encode(signature_bytes).decode('utf-8')
         pre_capsule.signature = signature_b64
