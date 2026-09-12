@@ -40,6 +40,9 @@ const Visualizer3D = (() => {
     { x:  13, label: 'Clearing House' },
   ];
 
+  /* Where along the corridor the payload sits at each timeline step. */
+  const STEP_POSITIONS = [0, 0, 0.42, 0.5, 1];
+
   const STEP_TEXT = [
     'Key generation. ML-KEM-768 and ML-DSA-65 keypairs are established at both ends.',
     'Encapsulation. The payload is sealed before it touches the wire.',
@@ -65,7 +68,7 @@ const Visualizer3D = (() => {
     nodes: [],
   };
 
-  let orbit = { theta: 0.42, phi: 1.16, radius: 34, dragging: false, lastX: 0, lastY: 0 };
+  let orbit = { theta: 0.38, phi: 1.04, radius: 37, dragging: false, lastX: 0, lastY: 0 };
   let payloadT = 0;
 
   /* ------------------------------------------------------------ scaffold -- */
@@ -146,6 +149,28 @@ const Visualizer3D = (() => {
     return group;
   }
 
+  /** Builds a text sprite so each node states what it is. */
+  function makeLabel(text, colourHex) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 96;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.font = '600 40px Consolas, ui-monospace, monospace';
+    ctx.fillStyle = colourHex;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text.toUpperCase(), canvas.width / 2, canvas.height / 2);
+
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: new THREE.CanvasTexture(canvas),
+      transparent: true,
+      depthTest: false,
+    }));
+    sprite.scale.set(9, 1.7, 1);
+    return sprite;
+  }
+
   function buildNodes() {
     HOPS.forEach((hop, index) => {
       const endpoint = index === 0 || index === HOPS.length - 1;
@@ -166,6 +191,10 @@ const Visualizer3D = (() => {
       );
       stalk.position.set(hop.x, endpoint ? 0.5 : -0.5, 0);
       scene.add(stalk);
+
+      const label = makeLabel(hop.label, `#${edgeColour.toString(16).padStart(6, '0')}`);
+      label.position.set(hop.x, endpoint ? 5.6 : 2.9, 0);
+      scene.add(label);
     });
   }
 
@@ -297,7 +326,9 @@ const Visualizer3D = (() => {
   function setMode(next) {
     mode = next;
     attacking = false;
-    payloadT = 0;
+    // Keep the payload at the current timeline position. Resetting it to zero
+    // parks the capsule inside Node A, where it cannot be seen.
+    payloadT = STEP_POSITIONS[step] ?? 0.42;
 
     objects.capsuleShell.visible = (mode === 'qsc');
     setPayloadColour(mode === 'qsc' ? COLOURS.capsule : COLOURS.plaintext);
@@ -320,7 +351,7 @@ const Visualizer3D = (() => {
     [...els.timeline.children].forEach((btn, i) =>
       btn.classList.toggle('is-active', i === index));
 
-    payloadT = [0, 0, 0.42, 0.5, 1][index] ?? 0;
+    payloadT = STEP_POSITIONS[index] ?? 0;
     els.hudStatus.textContent = STEP_TEXT[index];
 
     if (index === 3) highlightProxyTermination();
