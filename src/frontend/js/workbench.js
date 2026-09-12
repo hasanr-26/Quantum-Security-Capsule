@@ -474,10 +474,11 @@
     Visualizer3D.mount({
       container: $('stage3d'),
       hudMode: $('hud-mode'),
-      hudHops: $('hud-hops'),
+      hudPhase: $('hud-phase'),
       hudPayload: $('hud-payload'),
       hudStatus: $('hud-status-text'),
       timeline: $('timeline'),
+      log: $('viz-log'),
     });
 
     $('btn-keys').addEventListener('click', rotateKeys);
@@ -497,8 +498,10 @@
 
     $('btn-mode-tls').addEventListener('click', () => Visualizer3D.setMode('tls'));
     $('btn-mode-qsc').addEventListener('click', () => Visualizer3D.setMode('qsc'));
+    $('btn-run').addEventListener('click', () => Visualizer3D.runFullProcess());
     $('btn-attack').addEventListener('click', () => Visualizer3D.runAttack());
     $('btn-reset3d').addEventListener('click', () => Visualizer3D.reset());
+    $('btn-clear-viz-log').addEventListener('click', () => Visualizer3D.clearNarration());
 
     QSC.log(`workbench connected to ${location.origin} over TLS`, 'ok');
 

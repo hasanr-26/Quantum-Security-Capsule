@@ -186,9 +186,11 @@ main { flex: 1 1 auto; overflow: hidden; position: relative; }
 .grid--2     { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .grid--sidebar { grid-template-columns: 340px minmax(0, 1fr); }
 .grid--wide-left { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
+.grid--viz   { grid-template-columns: minmax(0, 1fr) 380px; }
 
 @media (max-width: 1100px) {
-  .grid--2, .grid--sidebar, .grid--wide-left { grid-template-columns: minmax(0, 1fr); }
+  .grid--2, .grid--sidebar, .grid--wide-left,
+  .grid--viz { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* --------------------------------------------------------------------------
@@ -514,7 +516,24 @@ pre.code--leak  { color: var(--red); }
    3D viewport
    -------------------------------------------------------------------------- */
 
-.stage3d { position: relative; height: 100%; min-height: 440px; background: #06080b; }
+.stage3d {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 320px;
+  background: #06080b;
+  overflow: hidden;
+}
+
+.stage3d__hint {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  pointer-events: none;
+}
 .stage3d canvas { display: block; width: 100%; height: 100%; }
 
 .hud {
@@ -546,7 +565,7 @@ pre.code--leak  { color: var(--red); }
 
 .hud b { color: var(--text); font-weight: 500; }
 
-.timeline { display: flex; border-top: 1px solid var(--border); }
+.timeline { display: flex; border-top: 1px solid var(--border); flex: 0 0 auto; }
 
 .timeline__step {
   flex: 1 1 0;
@@ -564,6 +583,89 @@ pre.code--leak  { color: var(--red); }
 .timeline__step:hover { background: var(--panel-raised); color: var(--text-meta); }
 .timeline__step.is-active { border-top-color: var(--blue); color: var(--text); background: var(--panel-raised); }
 .timeline__step small { display: block; font-family: var(--mono); font-size: 9px; color: var(--text-dim); margin-top: 2px; }
+
+
+/* --------------------------------------------------------------------------
+   Narration panel - explains each phase as the 3D scene plays it
+   -------------------------------------------------------------------------- */
+
+.narrate {
+  padding: 0;
+  background: var(--panel-sunken);
+  min-height: 100%;
+}
+
+.narrate__entry {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  border-left: 2px solid var(--border-strong);
+  animation: narrate-in 0.25s ease-out;
+}
+
+@keyframes narrate-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.narrate__entry--step   { border-left-color: var(--blue); }
+.narrate__entry--good   { border-left-color: var(--green); }
+.narrate__entry--bad    { border-left-color: var(--red); }
+.narrate__entry--warn   { border-left-color: var(--amber); }
+.narrate__entry--note   { border-left-color: var(--border-strong); }
+
+.narrate__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.narrate__title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.narrate__entry--good .narrate__title { color: var(--green); }
+.narrate__entry--bad  .narrate__title { color: var(--red); }
+.narrate__entry--warn .narrate__title { color: var(--amber); }
+
+.narrate__clock {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--text-dim);
+  flex: 0 0 auto;
+}
+
+.narrate__body {
+  font-size: 11.5px;
+  line-height: 1.62;
+  color: var(--text-meta);
+}
+
+.narrate__body b { color: var(--text); font-weight: 500; }
+.narrate__body code {
+  font-size: 10.5px;
+  color: var(--blue);
+  background: rgba(59, 130, 246, 0.09);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.narrate__tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  padding: 1px 5px;
+  margin-top: 6px;
+}
 
 /* --------------------------------------------------------------------------
    Utility

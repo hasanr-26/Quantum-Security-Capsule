@@ -212,22 +212,25 @@
 
   <!-- ============ 03 3D VISUALIZER ============ -->
   <section class="view" id="view-visualizer">
-    <div style="display:flex; flex-direction:column; height:100%">
-      <div class="panel" style="flex:1 1 auto; min-height:0">
+    <div class="grid grid--viz">
+
+      <div class="panel">
         <div class="panel__head">
           <span class="panel__title">Channel Security vs Message Security</span>
           <div style="display:flex; gap:8px; align-items:center">
             <button class="btn btn--inline" id="btn-mode-tls">Mode A &mdash; TLS 1.3</button>
             <button class="btn btn--inline" id="btn-mode-qsc">Mode B &mdash; QSC Capsule</button>
+            <button class="btn btn--inline btn--go" id="btn-run">&#9654; Run Full Process</button>
             <button class="btn btn--inline btn--danger" id="btn-attack">Run Quantum Attack</button>
             <button class="btn btn--inline" id="btn-reset3d">Reset</button>
           </div>
         </div>
+
         <div class="stage3d" id="stage3d">
           <div class="hud hud--tl">
             <div class="hud__title">Scene</div>
             <div>Mode <b id="hud-mode">TLS 1.3 Transport</b></div>
-            <div>Hops <b id="hud-hops">4</b></div>
+            <div>Phase <b id="hud-phase">idle</b></div>
             <div>Payload <b id="hud-payload">plaintext in tunnel</b></div>
           </div>
           <div class="hud hud--tr">
@@ -239,17 +242,36 @@
           </div>
           <div class="hud hud--bl" id="hud-status">
             <div class="hud__title">Status</div>
-            <div id="hud-status-text">Idle. Pick a mode, then run the attack.</div>
+            <div id="hud-status-text">Idle. Pick a mode, then press Run Full Process.</div>
+          </div>
+          <div class="stage3d__hint">drag to orbit &middot; scroll to zoom</div>
+        </div>
+
+        <div class="timeline" id="timeline">
+          <button class="timeline__step is-active" data-step="0">1. Key Generation<small>ML-KEM + ML-DSA keypairs</small></button>
+          <button class="timeline__step" data-step="1">2. Encapsulation<small>seal the payload</small></button>
+          <button class="timeline__step" data-step="2">3. Wire Transit<small>untrusted network</small></button>
+          <button class="timeline__step" data-step="3">4. Proxy Hop<small>TLS terminates here</small></button>
+          <button class="timeline__step" data-step="4">5. Settlement<small>validate + decrypt</small></button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head">
+          <span class="panel__title">Narration</span>
+          <button class="btn btn--inline" id="btn-clear-viz-log">Clear</button>
+        </div>
+        <div class="panel__body panel__body--flush">
+          <div class="narrate" id="viz-log">
+            <div class="empty">
+              Press <strong>Run Full Process</strong> to watch a payment travel the
+              network step by step. Switch modes to compare how TLS and QSC behave,
+              then run the quantum attack against each.
+            </div>
           </div>
         </div>
       </div>
-      <div class="timeline" id="timeline">
-        <button class="timeline__step is-active" data-step="0">Key Generation<small>ML-KEM + ML-DSA</small></button>
-        <button class="timeline__step" data-step="1">Encapsulation<small>seal the payload</small></button>
-        <button class="timeline__step" data-step="2">Wire Transit<small>untrusted network</small></button>
-        <button class="timeline__step" data-step="3">Proxy Hop<small>TLS terminates</small></button>
-        <button class="timeline__step" data-step="4">Settlement<small>validate + decrypt</small></button>
-      </div>
+
     </div>
   </section>
 
