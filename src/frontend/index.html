@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QSC Security Workbench</title>
+<link rel="stylesheet" href="/static/css/terminal.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%230a0c10'/><rect x='3' y='3' width='10' height='10' fill='none' stroke='%2310b981' stroke-width='1.5'/></svg>">
+</head>
+<body>
+
+<!-- ===================== MASTHEAD ===================== -->
+<header class="masthead">
+  <div class="masthead__identity">
+    <div class="masthead__title">QSC Security Workbench</div>
+    <div class="masthead__subtitle" id="node-id">connecting&hellip;</div>
+  </div>
+  <div class="masthead__stats">
+    <div class="stat">
+      <div class="stat__label">Transport</div>
+      <div class="stat__value stat__value--green" id="stat-tls"><span class="dot"></span>&mdash;</div>
+    </div>
+    <div class="stat">
+      <div class="stat__label">Cipher</div>
+      <div class="stat__value" id="stat-cipher" style="font-size:11px">&mdash;</div>
+    </div>
+    <div class="stat">
+      <div class="stat__label">Uptime</div>
+      <div class="stat__value" id="stat-uptime">&mdash;</div>
+    </div>
+    <div class="stat">
+      <div class="stat__label">API Calls</div>
+      <div class="stat__value stat__value--blue" id="stat-requests">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat__label">Capsules</div>
+      <div class="stat__value" id="stat-capsules">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat__label">Rejected</div>
+      <div class="stat__value stat__value--red" id="stat-rejected">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat__label">Replay Cache</div>
+      <div class="stat__value stat__value--amber" id="stat-replay">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat__label">ML-KEM Key</div>
+      <div class="stat__value" id="stat-kemfp" style="font-size:10.5px">&mdash;</div>
+    </div>
+  </div>
+</header>
+
+<!-- ===================== TABS ===================== -->
+<nav class="tabs" role="tablist">
+  <button class="tab" role="tab" data-view="settlement" aria-selected="true"><span class="tab__index">01</span>Settlement</button>
+  <button class="tab" role="tab" data-view="inspector"  aria-selected="false"><span class="tab__index">02</span>Packet Inspector</button>
+  <button class="tab" role="tab" data-view="visualizer" aria-selected="false"><span class="tab__index">03</span>3D Visualizer</button>
+  <button class="tab" role="tab" data-view="intercept"  aria-selected="false"><span class="tab__index">04</span>Interception Lab</button>
+  <button class="tab" role="tab" data-view="crypto"     aria-selected="false"><span class="tab__index">05</span>Cryptography</button>
+</nav>
+
+<main>
+
+  <!-- ============ 01 SETTLEMENT ============ -->
+  <section class="view is-active" id="view-settlement">
+    <div class="grid grid--sidebar">
+
+      <div class="panel">
+        <div class="panel__head"><span class="panel__title">Instruction Builder</span></div>
+        <div class="panel__body">
+          <p class="section-note">
+            Builds a real capsule: ML-KEM-768 encapsulation, HKDF-SHA3-512 key
+            derivation, AES-256-GCM payload sealing, SHA3-512 integrity lock and
+            an ML-DSA-65 origin signature. Every call runs the actual primitives.
+          </p>
+
+          <div class="field">
+            <label class="field__label" for="payload-kind">Message Standard</label>
+            <select id="payload-kind">
+              <option value="pacs008">ISO 20022 pacs.008 &mdash; Interbank Credit Transfer</option>
+              <option value="mt103">SWIFT MT103 &mdash; Customer Credit Transfer</option>
+              <option value="card">Card Authorisation Record (PCI DSS)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="ttl">Validity Window (seconds)</label>
+            <input type="number" id="ttl" value="300" min="5" max="86400">
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="jurisdiction">Policy Jurisdiction</label>
+            <select id="jurisdiction">
+              <option value="UK">UK &mdash; FCA / Bank of England</option>
+              <option value="EU">EU &mdash; ECB / TARGET2</option>
+              <option value="US">US &mdash; Federal Reserve / CHIPS</option>
+              <option value="IN">IN &mdash; RBI</option>
+            </select>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn" id="btn-keys">Rotate Keys</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--primary" id="btn-build">Build Capsule</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--go" id="btn-settle" disabled>Transmit &amp; Settle</button>
+          </div>
+
+          <div class="divider"></div>
+          <div class="split-head"><span>Route</span></div>
+          <div class="field">
+            <label class="field__label" for="route">Network Path</label>
+            <select id="route">
+              <option value="direct">Direct to settlement node (:8443)</option>
+              <option value="proxy">Via interception proxy (:8444)</option>
+            </select>
+          </div>
+
+          <div class="divider"></div>
+          <div class="split-head"><span>Current Capsule</span></div>
+          <div class="kv" id="capsule-summary">
+            <div class="kv__k">Capsule ID</div><div class="kv__v">&mdash;</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head">
+          <span class="panel__title">Zero-Trust Validation Pipeline</span>
+          <span class="panel__meta" id="settle-status">idle</span>
+        </div>
+        <div class="panel__body panel__body--flush">
+          <div id="stage-list">
+            <div class="empty">Build a capsule, then transmit it to run the five-stage pipeline.</div>
+          </div>
+        </div>
+        <div class="panel__head" style="border-top:1px solid var(--border)">
+          <span class="panel__title">Decrypted Payload at Settlement Engine</span>
+          <span class="panel__meta" id="decrypt-meta">&mdash;</span>
+        </div>
+        <div class="panel__body">
+          <pre class="code" id="decrypted-output">Awaiting settlement.</pre>
+        </div>
+        <div class="panel__head" style="border-top:1px solid var(--border)">
+          <span class="panel__title">Network Console</span>
+          <button class="btn btn--inline" id="btn-clear-log">Clear</button>
+        </div>
+        <div class="panel__body panel__body--flush" style="max-height:210px">
+          <div class="log" id="net-log"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 PACKET INSPECTOR ============ -->
+  <section class="view" id="view-inspector">
+    <div class="grid grid--wide-left">
+
+      <div class="panel">
+        <div class="panel__head">
+          <span class="panel__title">Capsule Wire Format &mdash; Raw Bytes</span>
+          <span class="panel__meta" id="hex-meta">no capsule loaded</span>
+        </div>
+        <div class="legend" id="hex-legend"></div>
+        <div class="panel__body panel__body--flush">
+          <div class="hex" id="hex-view">
+            <div class="empty">Build a capsule on the Settlement tab to inspect its bytes.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head"><span class="panel__title">Byte Selection</span></div>
+        <div class="panel__body">
+          <div class="kv" id="byte-detail">
+            <div class="kv__k">Offset</div><div class="kv__v">&mdash;</div>
+          </div>
+        </div>
+
+        <div class="panel__head" style="border-top:1px solid var(--border)">
+          <span class="panel__title">Attack Lab &mdash; Single Bit Flip</span>
+        </div>
+        <div class="panel__body">
+          <p class="section-note">
+            A one-bit change is the smallest modification an active attacker can make.
+            Flip it and watch which control stops the capsule. Signature bytes are
+            excluded from the integrity hash, so tampering there fails at stage 5
+            rather than stage 4 &mdash; the two controls cover different ground.
+          </p>
+          <div class="field">
+            <label class="field__label" for="flip-offset">Byte Offset</label>
+            <input type="number" id="flip-offset" value="0" min="0">
+          </div>
+          <div class="field">
+            <label class="field__label" for="flip-bit">Bit Index (0&ndash;7)</label>
+            <input type="number" id="flip-bit" value="1" min="0" max="7">
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--danger" id="btn-flip" disabled>Flip Bit &amp; Resubmit</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn" id="btn-replay" disabled>Replay Capsule Verbatim</button>
+          </div>
+          <div id="attack-result"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 03 3D VISUALIZER ============ -->
+  <section class="view" id="view-visualizer">
+    <div style="display:flex; flex-direction:column; height:100%">
+      <div class="panel" style="flex:1 1 auto; min-height:0">
+        <div class="panel__head">
+          <span class="panel__title">Channel Security vs Message Security</span>
+          <div style="display:flex; gap:8px; align-items:center">
+            <button class="btn btn--inline" id="btn-mode-tls">Mode A &mdash; TLS 1.3</button>
+            <button class="btn btn--inline" id="btn-mode-qsc">Mode B &mdash; QSC Capsule</button>
+            <button class="btn btn--inline btn--danger" id="btn-attack">Run Quantum Attack</button>
+            <button class="btn btn--inline" id="btn-reset3d">Reset</button>
+          </div>
+        </div>
+        <div class="stage3d" id="stage3d">
+          <div class="hud hud--tl">
+            <div class="hud__title">Scene</div>
+            <div>Mode <b id="hud-mode">TLS 1.3 Transport</b></div>
+            <div>Hops <b id="hud-hops">4</b></div>
+            <div>Payload <b id="hud-payload">plaintext in tunnel</b></div>
+          </div>
+          <div class="hud hud--tr">
+            <div class="hud__title">Lattice Parameters</div>
+            <div>Ring <b>Z<sub>q</sub>[X]/(X<sup>256</sup>+1)</b></div>
+            <div>Modulus q <b>3329</b></div>
+            <div>Module rank k <b>3</b></div>
+            <div>Shared secret <b>256 bit</b></div>
+          </div>
+          <div class="hud hud--bl" id="hud-status">
+            <div class="hud__title">Status</div>
+            <div id="hud-status-text">Idle. Pick a mode, then run the attack.</div>
+          </div>
+        </div>
+      </div>
+      <div class="timeline" id="timeline">
+        <button class="timeline__step is-active" data-step="0">Key Generation<small>ML-KEM + ML-DSA</small></button>
+        <button class="timeline__step" data-step="1">Encapsulation<small>seal the payload</small></button>
+        <button class="timeline__step" data-step="2">Wire Transit<small>untrusted network</small></button>
+        <button class="timeline__step" data-step="3">Proxy Hop<small>TLS terminates</small></button>
+        <button class="timeline__step" data-step="4">Settlement<small>validate + decrypt</small></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 INTERCEPTION LAB ============ -->
+  <section class="view" id="view-intercept">
+    <div class="grid grid--sidebar">
+      <div class="panel">
+        <div class="panel__head"><span class="panel__title">Interception Control</span></div>
+        <div class="panel__body">
+          <p class="section-note">
+            The proxy on port 8444 is a genuine TLS-terminating hop &mdash; the same
+            position held by an API gateway, service mesh sidecar, WAF or corporate
+            inspection appliance. It records every byte it relays.
+          </p>
+          <div class="btn-row">
+            <button class="btn" id="btn-send-legacy">Send Payment via TLS Only</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn" id="btn-send-capsule">Send Payment as Capsule</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--danger" id="btn-quantum">Break Archived TLS Sessions</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn" id="btn-clear-captures">Clear Harvest Archive</button>
+          </div>
+          <div class="divider"></div>
+          <div class="kv" id="harvest-stats">
+            <div class="kv__k">Flows harvested</div><div class="kv__v">0</div>
+          </div>
+          <div class="divider"></div>
+          <p class="section-note" style="margin:0">
+            <strong style="color:var(--text-meta)">What is real:</strong> the network hops,
+            the TLS termination and the captured bytes.<br><br>
+            <strong style="color:var(--text-meta)">What is modelled:</strong> the assumption
+            that a quantum computer has recovered the session keys of recorded
+            traffic. That is the 2030s threat, applied here to genuine captures.
+          </p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head">
+          <span class="panel__title">Harvested Flows</span>
+          <span class="panel__meta" id="capture-meta">0 bytes</span>
+        </div>
+        <div class="panel__body panel__body--flush" style="max-height:230px">
+          <table class="data">
+            <thead><tr><th>Capture</th><th>Method</th><th>Path</th><th class="num">Req</th><th class="num">RTT</th><th>Protection</th></tr></thead>
+            <tbody id="capture-rows"><tr><td colspan="6"><div class="empty">No traffic intercepted yet.</div></td></tr></tbody>
+          </table>
+        </div>
+        <div class="panel__head" style="border-top:1px solid var(--border)">
+          <span class="panel__title">Post-Quantum Forensics</span>
+          <span class="panel__meta" id="forensics-meta">&mdash;</span>
+        </div>
+        <div class="panel__body" id="forensics">
+          <div class="empty">Send traffic through the proxy, then break the archived sessions.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 05 CRYPTOGRAPHY ============ -->
+  <section class="view" id="view-crypto">
+    <div class="grid grid--2">
+      <div class="panel">
+        <div class="panel__head"><span class="panel__title">Post-Quantum Parameter Sets</span></div>
+        <div class="panel__body" id="crypto-params">
+          <div class="empty">Loading parameters&hellip;</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel__head">
+          <span class="panel__title">Live TLS Session</span>
+          <button class="btn btn--inline" id="btn-probe">Re-probe Handshake</button>
+        </div>
+        <div class="panel__body" id="tls-details">
+          <div class="empty">Probing&hellip;</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="/static/js/vendor/three.min.js"></script>
+<script src="/static/js/api_client.js"></script>
+<script src="/static/js/hex_inspector.js"></script>
+<script src="/static/js/attack_lab.js"></script>
+<script src="/static/js/visualizer_3d.js"></script>
+<script src="/static/js/workbench.js"></script>
+</body>
+</html>

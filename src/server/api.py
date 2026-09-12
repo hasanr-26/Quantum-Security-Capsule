@@ -9,13 +9,15 @@ measured with a performance counter around the actual operations.
 
 import base64
 import json
+import os
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from src.capsule import CapsuleBuilder, CapsuleValidator, PolicyMetadata, SecureReceiver
@@ -571,6 +573,27 @@ def tls_telemetry() -> Dict[str, Any]:
         "live_handshake": tls_config.probe_tls_handshake(),
         "probed_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+# --------------------------------------------------------------------------
+# Workbench frontend
+# --------------------------------------------------------------------------
+
+FRONTEND_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "frontend")
+)
+
+if os.path.isdir(FRONTEND_DIR):
+    app.mount(
+        "/static",
+        StaticFiles(directory=FRONTEND_DIR),
+        name="static",
+    )
+
+    @app.get("/", include_in_schema=False)
+    def workbench() -> FileResponse:
+        """Serves the security workbench over the same TLS connection as the API."""
+        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
 
 @app.exception_handler(Exception)
