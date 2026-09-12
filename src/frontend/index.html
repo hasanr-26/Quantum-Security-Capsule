@@ -264,6 +264,15 @@
             position held by an API gateway, service mesh sidecar, WAF or corporate
             inspection appliance. It records every byte it relays.
           </p>
+          <div class="field">
+            <label class="field__label" for="intercept-kind">Message Standard</label>
+            <select id="intercept-kind">
+              <option value="card">Card Authorisation Record (PCI DSS)</option>
+              <option value="pacs008">ISO 20022 pacs.008 &mdash; Interbank Credit Transfer</option>
+              <option value="mt103">SWIFT MT103 &mdash; Customer Credit Transfer</option>
+            </select>
+          </div>
+
           <div class="btn-row">
             <button class="btn" id="btn-send-legacy">Send Payment via TLS Only</button>
           </div>

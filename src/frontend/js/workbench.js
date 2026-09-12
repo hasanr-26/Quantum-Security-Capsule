@@ -317,7 +317,7 @@
   /* ------------------------------------------------------- interception -- */
 
   async function sendLegacy() {
-    const generated = await QSC.makePayload($('payload-kind').value);
+    const generated = await QSC.makePayload($('intercept-kind').value);
     if (!generated.ok) return;
     const payload = generated.data.payload_raw;
 
@@ -332,7 +332,7 @@
   }
 
   async function sendCapsuleThroughProxy() {
-    const generated = await QSC.makePayload($('payload-kind').value);
+    const generated = await QSC.makePayload($('intercept-kind').value);
     if (!generated.ok) return;
 
     const built = await QSC.encapsulate({ payload_raw: generated.data.payload_raw });

@@ -29,6 +29,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.server import tls_config
@@ -140,6 +141,17 @@ proxy_app = FastAPI(
     ),
     docs_url="/_intercept/docs",
     openapi_url="/_intercept/openapi.json",
+)
+
+
+# The workbench is served from the settlement node on :8443 while the proxy
+# listens on :8444, so its control endpoints are cross-origin to the browser.
+proxy_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-Intercepted-By", "X-Proxy-Round-Trip-Ms", "X-QSC-Process-Time-Ms"],
 )
 
 
