@@ -175,15 +175,19 @@ const HexInspector = (() => {
 
     if (state.activeField) {
       const span = state.offsets[state.activeField];
+      // value_start is the opening quote or brace. Arm one byte further in, so a
+      // bit flip lands in the field's content and is caught by the integrity
+      // lock rather than simply breaking JSON parsing.
+      const contentStart = Math.min(span.value_start + 1, span.value_end - 1);
       showDetail({
         field: state.activeField,
-        offset: span.value_start,
+        offset: contentStart,
         length: span.length,
         note: FIELD_NOTES[state.activeField],
       });
-      const row = els.view.querySelector(`[data-offset="${span.value_start}"]`);
+      const row = els.view.querySelector(`[data-offset="${contentStart}"]`);
       if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      if (byteSelectHandler) byteSelectHandler(span.value_start);
+      if (byteSelectHandler) byteSelectHandler(contentStart);
     }
   }
 

@@ -178,7 +178,9 @@ main { flex: 1 1 auto; overflow: hidden; position: relative; }
   gap: 1px;
   background: var(--border);
   height: 100%;
-  align-content: start;
+  /* A single full-height row: panels stretch to the viewport rather than
+     collapsing to their content, which is what keeps the layout terminal-like. */
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .grid--2     { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
@@ -335,21 +337,31 @@ table.data td.val { color: var(--text); }
 table.data td.num { text-align: right; }
 table.data tr:hover td { background: var(--panel-raised); }
 
-/* Key/value list used for parameter blocks */
-.kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0; }
-
-.kv__row {
-  display: contents;
-}
+/* Key/value list used for parameter blocks.
+   The label column sizes to its content and never wraps; the value column
+   takes the remainder and breaks long hashes rather than overflowing. */
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0; }
 
 .kv__k, .kv__v {
   padding: 4px 0;
   border-bottom: 1px solid var(--border);
   font-size: 11.5px;
+  min-width: 0;
 }
 
-.kv__k { color: var(--text-dim); font-family: var(--sans); }
-.kv__v { color: var(--text); font-family: var(--mono); text-align: right; padding-left: 16px; }
+.kv__k {
+  color: var(--text-dim);
+  font-family: var(--sans);
+  white-space: nowrap;
+  padding-right: 14px;
+}
+
+.kv__v {
+  color: var(--text);
+  font-family: var(--mono);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
 
 /* --------------------------------------------------------------------------
    Status

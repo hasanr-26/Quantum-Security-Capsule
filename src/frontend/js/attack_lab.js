@@ -57,10 +57,18 @@ const AttackLab = (() => {
     const data = result.data;
     HexInspector.markFlipped(offset);
 
+    // A tamper can be rejected before the pipeline even runs - a flipped byte in
+    // a JSON delimiter makes the capsule unparseable - so the outcome is read
+    // from the status, with the failing stage named only when there is one.
     const caught = (data.stage_diagnostics || []).find((s) => s.status === 'FAIL');
-    const summary = caught
-      ? `Stopped at stage ${caught.stage} &mdash; ${QSC.escapeHtml(caught.name)}`
-      : 'Capsule was accepted.';
+    let summary;
+    if (data.status === 'REJECTED') {
+      summary = caught
+        ? `Stopped at stage ${caught.stage} &mdash; ${QSC.escapeHtml(caught.name)}`
+        : QSC.escapeHtml(data.reason || 'Rejected before validation.');
+    } else {
+      summary = 'Accepted &mdash; no control objected to this change.';
+    }
 
     els.result.innerHTML = `
       <div class="divider"></div>
