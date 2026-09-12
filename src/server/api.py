@@ -410,6 +410,52 @@ def capsule_hexdump(capsule_id: str, limit: int = 2048) -> Dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
+# Legacy channel-security endpoint (the control group)
+# --------------------------------------------------------------------------
+
+class LegacyTransferRequest(BaseModel):
+    """A conventional payment instruction: plaintext JSON, protected only by TLS."""
+    payload_raw: Optional[str] = None
+    payload_kind: str = "pacs008"
+
+
+@app.post("/api/v1/legacy/transfer")
+def legacy_transfer(req: LegacyTransferRequest) -> Dict[str, Any]:
+    """
+    Accepts a payment the way essentially every production banking API does today:
+    as plaintext inside a TLS tunnel.
+
+    Nothing here is strawmanned - TLS 1.3 with AES-256-GCM is genuinely strong
+    transport security, and this endpoint really is protected by it in transit.
+    The weakness is structural rather than cryptographic: the protection ends at
+    the tunnel. Any TLS-terminating hop, and any future adversary holding a
+    harvested session key, reads the body in full.
+
+    Routing a payment through this endpoint via the interception proxy is what
+    makes that concrete.
+    """
+    if req.payload_raw:
+        raw = req.payload_raw.encode("utf-8")
+        descriptor = {"kind": "custom", "label": "Operator-supplied payload"}
+    else:
+        raw, descriptor = build_payload(req.payload_kind)
+
+    return {
+        "status": "ACCEPTED",
+        "protection_model": "CHANNEL_SECURITY_ONLY",
+        "transport": "TLS 1.3",
+        "message_layer_protection": None,
+        "payload_echo": raw.decode("utf-8"),
+        "descriptor": descriptor,
+        "size_bytes": len(raw),
+        "warning": (
+            "This payload is plaintext at every TLS termination point and is "
+            "recoverable from any archived session whose key is later broken."
+        ),
+    }
+
+
+# --------------------------------------------------------------------------
 # Attack lab
 # --------------------------------------------------------------------------
 
