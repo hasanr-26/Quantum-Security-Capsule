@@ -101,7 +101,7 @@ Unlike Hybrid TLS, which requires massive endpoint socket upgrades and leaves in
 "To summarize:  
 Hybrid TLS secures the tunnel for the moment. **Quantum Security Capsules secure the data for decades.**
 
-We have built a fully functional reference implementation, live Web Visualizer dashboard (`python src/visualizer/app.py`), executable CLI use-case scripts (`python src/demo/banking_transfer.py`), and automated test suite (`pytest`).
+We have built a fully functional reference implementation running on the real NIST primitives: a live TLS 1.3 settlement node with an interactive security workbench (`python -m src.server.run`), a TLS-terminating interception proxy that demonstrates Harvest Now Decrypt Later against genuinely captured traffic (`python src/demo/hndl_demo.py`), executable CLI use-case scripts (`python src/demo/banking_transfer.py`), measured performance benchmarks (`python src/demo/benchmark.py`), and an automated test suite of 69 tests (`pytest`).
 
 We request approval to launch Phase 1 pilot integration across our high-value payment gateways and enterprise Kafka pipelines.
 
@@ -122,7 +122,7 @@ src/
 │   └── hashing.py    # SHA3-512 Digest & Canonical Serialization (FIPS 202)
 ├── capsule/          # High-Level QSC Lifecycle Orchestration
 │   ├── models.py     # Data structures & JSON Wire Schema
-│   ├── builder.py    # 7-Step Capsule Creation Pipeline
+│   ├── builder.py    # 8-Step Capsule Creation Pipeline
 │   ├── validator.py  # 5-Stage Zero-Trust Validation Engine
 │   └── receiver.py   # Decapsulation & Decryption Execution Engine
 ├── utils/            # Utilities & Replay Prevention

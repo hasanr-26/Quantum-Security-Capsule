@@ -75,19 +75,27 @@ Executes ML-KEM decapsulation to recover the symmetric encryption key, decrypts 
 
 ---
 
-## 3. The 7-Step Capsule Builder Pipeline
+## 3. The 8-Step Capsule Builder Pipeline
 
-When creating a capsule, [`CapsuleBuilder.build_capsule()`](file:///c:/Users/hasan/antigravity/QSC/src/capsule/builder.py) executes the following sequence:
+When creating a capsule, [`CapsuleBuilder.build_capsule()`](../src/capsule/builder.py) executes the following sequence:
 
 ```
-[ Step 1: ID & Timestamps ]  --->  Generate Unique Capsule ID & ISO-8601 Timestamps (TTL: 300s)
-[ Step 2: ML-KEM-768 Key ]    --->  Encapsulate 256-bit Shared Secret (K) & Generate KEM Ciphertext
-[ Step 3: AES-256-GCM ]       --->  Encrypt Payload with K; Generate Nonce & GCM Auth Tag
-[ Step 4: Replay Token ]      --->  Compute SHA3-512 Replay Token (CapsuleID + Timestamp + Nonce)
-[ Step 5: Canonicalization ]  --->  Build Deterministic JSON Schema for Integrity Lock
-[ Step 6: SHA3-512 Digest ]   --->  Compute 512-bit Canonical Integrity Hash
-[ Step 7: ML-DSA-65 Sign ]    --->  Sign Integrity Hash with Sender Private Key
+[ Step 1: ID & Timestamps ]   --->  Generate Unique Capsule ID & ISO-8601 Timestamps (TTL: 300s)
+[ Step 2: ML-KEM-768 Encaps ] --->  Encapsulate 256-bit Shared Secret (K) & Generate KEM Ciphertext
+[ Step 3: HKDF-SHA3-512 ]     --->  Derive AES Content Key from K, salted with the Capsule ID
+[ Step 4: AES-256-GCM ]       --->  Encrypt Payload; Generate Nonce & GCM Auth Tag
+[ Step 5: Replay Token ]      --->  Compute SHA3-512 Replay Token (CapsuleID + Timestamp + Nonce)
+[ Step 6: Canonicalization ]  --->  Build Deterministic JSON Schema for Integrity Lock
+[ Step 7: SHA3-512 Digest ]   --->  Compute 512-bit Canonical Integrity Hash
+[ Step 8: ML-DSA-65 Sign ]    --->  Sign Integrity Hash with Sender Private Key
 ```
+
+**On step 3.** NIST SP 800-56C Rev. 2 requires that a shared secret produced by a
+key-establishment scheme be passed through an approved KDF before it is used as
+a working key. The raw ML-KEM secret is therefore never used directly as the AES
+key. The capsule identifier serves as the HKDF salt, so two capsules can never
+derive the same content key, and a domain-separation string binds the derived
+key to this protocol version. See [`kdf.py`](../src/crypto/kdf.py).
 
 ---
 
