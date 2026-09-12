@@ -255,6 +255,8 @@ python src/demo/benchmark.py
 | **06 Compliance & Deployment** | NIST FIPS roadmap, regulatory alignment, migration blueprint | [docs/06_compliance_deployment.md](docs/06_compliance_deployment.md) |
 | **07 Comparison & Roadmap** | Comparison with Hybrid TLS, PQ-VPNs, implementation roadmap | [docs/07_comparison_roadmap.md](docs/07_comparison_roadmap.md) |
 | **08 Presentation & Pitch** | Presentation materials, elevator pitch, 5-minute executive script | [docs/08_presentation.md](docs/08_presentation.md) |
+| **09 Feature Guide** | Every screen, button and script &mdash; what it does, why it exists, how to demo it | [docs/09_feature_guide.md](docs/09_feature_guide.md) |
+| **10 Progress Update** | Plain-language status summary for non-specialist readers | [docs/10_progress_update.md](docs/10_progress_update.md) |
 
 ---
 
