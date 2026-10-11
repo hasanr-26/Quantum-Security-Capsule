@@ -144,3 +144,103 @@ Clicking `<button id="btn-attack">` simulates the Harvest Now, Decrypt Later att
 - **DOM Element:** `<div id="viz-log">`
 - **What it does:** Displays an automated play-by-play narrative with timestamps, cryptographic parameters, and plain-English explanations.
 - **Clear Button (`#btn-clear-viz-log`):** Empties the narration log for fresh demonstration runs.
+
+---
+
+## 7. Plain-English Presenter Cheatsheet (Easy Read-Aloud Script)
+
+> **Presenter Tip:** Use this section during your live demonstration or showcase. You can read or reference these simple step-by-step explanations directly while clicking the buttons on the screen.
+
+---
+
+### Part 1: ONLY TLS (Mode A &mdash; Standard Flow)
+
+#### Step 1: Key Generation 🔑
+Both systems create the same secret key to communicate securely. The server proves its identity using a digital certificate. A powerful future quantum computer could potentially break this cryptography.
+
+#### Step 2: Serialisation 📦
+The payment is converted into readable JSON containing account numbers and the amount. There is no additional protection on the payment itself.
+
+#### Step 3: Wire Transit 🌐
+The payment travels through the internet in encrypted form. Outsiders cannot easily read it while it is travelling.
+
+#### Step 4: Reverse Proxy ⚠️
+**This is the most important step.** The proxy decrypts the payment to inspect and forward it. Now the payment is readable in the server's memory. If an attacker compromises the proxy, they could access the payment.
+
+#### Step 5: Message Broker 💾
+The broker stores the payment for processing and recovery. In this simulation, it saves the payment as plaintext, meaning someone with access to the stored data could read it.
+
+#### Step 6: Settlement 🏦
+The final system receives the payment but does not independently verify its authenticity or integrity. If an intermediary altered the payment, the system might not detect the change.
+
+> **What's the main problem?**  
+> TLS protects data while travelling, but doesn't automatically protect it at every system that processes it.  
+> A quantum attack threatens the cryptography. The proxy and broker weaknesses exist even without quantum computers.
+
+---
+
+### Part 2: Quantum Attack OVER TLS (Mode A &mdash; Attack Flow)
+
+#### 1. Harvest 📥
+An attacker secretly records all encrypted payment data travelling over the network. They cannot read it now, but they save it for later.
+
+#### 2. Wait for the Future ⏳
+The attacker stores the data for years, waiting for powerful quantum computers to become available. This is called **“Harvest Now, Decrypt Later.”**
+
+#### 3. Shor’s Algorithm ⚛️
+A sufficiently powerful quantum computer uses Shor’s algorithm to break the elliptic-curve cryptography used in the recorded TLS handshakes and potentially recover the session keys.
+
+#### 4. Total Compromise 💥
+If the attack succeeds, the attacker can decrypt the recorded traffic and read sensitive payment details, such as account numbers and transaction amounts.
+
+> **Main Takeaway:**  
+> Data encrypted today could be stolen now and decrypted in the future. This is why systems handling highly confidential, long-term data need protection against future quantum attacks.  
+> *(Note: This attack requires a sufficiently capable quantum computer; it is not something today's ordinary computers can do.)*
+
+---
+
+### Part 3: QSC Capsule (Mode B &mdash; Standard Flow)
+
+#### Step 1: Key Generation 🔑
+The bank and clearing house create special post-quantum cryptographic keys. Their private keys stay secret, helping protect against future quantum attacks.
+
+#### Step 2: Encapsulation 🔒
+The payment is encrypted and digitally signed before being sent. Its contents cannot be read without the correct key, and the signature helps detect tampering.
+
+#### Step 3: Wire Transit 🌐
+The encrypted payment travels through the network. Even if TLS is broken, the payment itself remains encrypted.
+
+#### Step 4: Reverse Proxy 🛡️
+The proxy decrypts the TLS connection but sees only the sealed payment capsule. It can forward the payment but cannot read the amount or account numbers.
+
+#### Step 5: Message Broker 💾
+The broker saves the encrypted capsule to disk instead of storing readable payment details.
+
+#### Step 6: Settlement 🏦
+The receiving system checks the protocol version, expiry, replay protection, message integrity, and digital signature. Only after these checks pass does it decrypt the payment.
+
+> **Main Takeaway:**  
+> Unlike the TLS-only mode, QSC Capsule protects the payment itself, even when it passes through untrusted systems.  
+> *Now run the quantum attack: The attacker may capture the traffic, but breaking the TLS tunnel alone won't reveal the payment because the message has its own post-quantum encryption.*
+
+---
+
+### Part 4: Quantum Attack on QSC Capsule &mdash; Simple Explanation
+
+#### 1. Harvest 📥
+The attacker records all encrypted network traffic and saves it. They cannot read the payment yet.
+
+#### 2. Wait for the Future ⏳
+The attacker waits until a powerful quantum computer becomes available. This is called **“Harvest Now, Decrypt Later.”**
+
+#### 3. Shor’s Algorithm ⚛️
+The quantum computer breaks the TLS elliptic-curve cryptography and potentially recovers the session keys. The outer security tunnel is compromised.
+
+#### 4. Attack Deflected 🛡️
+The attacker discovers that the payment is still inside an encrypted capsule.  
+To open it, they would need to break **ML-KEM-768**, a post-quantum encryption algorithm based on a mathematical problem called **Module Learning With Errors (M-LWE)**.  
+Shor’s algorithm does **not** directly solve this problem. The payment remains protected, assuming the implementation and keys are secure.
+
+> **Main Takeaway:**  
+> TLS gets broken, but the payment stays encrypted. QSC Capsule adds another layer of protection, designed to withstand known quantum attacks, even if the outer TLS connection is compromised.
+
