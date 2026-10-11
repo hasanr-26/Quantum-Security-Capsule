@@ -256,6 +256,7 @@ python src/demo/benchmark.py
 | **07 Comparison & Roadmap** | Comparison with Hybrid TLS, PQ-VPNs, implementation roadmap | [docs/07_comparison_roadmap.md](docs/07_comparison_roadmap.md) |
 | **08 Presentation & Pitch** | Presentation materials, elevator pitch, 5-minute executive script | [docs/08_presentation.md](docs/08_presentation.md) |
 | **09 Feature Guide** | Every screen, button and script &mdash; what it does, why it exists, how to demo it | [docs/09_feature_guide.md](docs/09_feature_guide.md) |
+| **Web Pages & Features Guide** | Deep specification for each web page, feature mechanics, telemetry, and underlying theory | [docs/web_pages/README.md](docs/web_pages/README.md) |
 | **10 Progress Update** | Plain-language status summary for non-specialist readers | [docs/10_progress_update.md](docs/10_progress_update.md) |
 
 ---

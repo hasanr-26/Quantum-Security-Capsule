@@ -5,6 +5,8 @@ does**, **why it is in the project**, and **what to say when demonstrating it**.
 
 Use this as the operating manual and as the demo script.
 
+> For deep-dive architectural specifications, underlying mathematical theory, and byte-level mechanics for each web page, see the dedicated [Web Pages & Features Guide Suite](web_pages/README.md).
+
 ---
 
 ## Contents
