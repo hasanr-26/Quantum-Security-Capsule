@@ -198,6 +198,10 @@ def probe_tls_handshake(
                 completed = time.perf_counter()
                 cipher_name, protocol, secret_bits = tls_sock.cipher()
                 peer_cert = _format_peer_certificate(tls_sock.getpeercert())
+                try:
+                    tls_sock.unwrap()
+                except (ssl.SSLError, OSError):
+                    pass
                 return {
                     "connected": True,
                     "endpoint": f"{host}:{port}",

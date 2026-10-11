@@ -1,6 +1,5 @@
 # Quantum Security Capsule (QSC)
 
-[![Barclays Innovation Lab](https://img.shields.io/badge/Barclays-Innovation%20Lab-blue.svg)](https://www.barclays.com)
 [![NIST PQC](https://img.shields.io/badge/NIST-FIPS%20203%20%7C%20FIPS%20204-green.svg)](https://csrc.nist.gov/projects/post-quantum-cryptography)
 [![Tests](https://img.shields.io/badge/tests-69%20passed%20%7C%20100%25-brightgreen.svg)](tests/)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](https://www.python.org)
@@ -10,57 +9,18 @@
 
 ---
 
-## Why This Project is Required
+## Executive Summary
 
-### 1. The "Harvest Now, Decrypt Later" (HNDL) Reality
-Modern financial communications — SWIFT messaging, interbank settlement APIs, ISO 20022 transactions, enterprise message queues (Kafka, IBM MQ), and file transfers — rely almost exclusively on classical public-key cryptography (RSA-2048/3072 and ECDH/ECDSA P-256) inside TLS 1.3 or IPSec tunnels.
+Today's financial communication protocols — TLS, IPSec, VPNs, REST, gRPC —
+encrypt the **connection channel**. An adversary recording that traffic today
+("Harvest Now, Decrypt Later") only needs to wait: when a Cryptographically
+Relevant Quantum Computer arrives, Shor's algorithm recovers the session keys of
+every archived handshake and the historic payloads become readable.
 
-Hostile actors and state-sponsored adversaries are actively intercepting and archiving petabytes of encrypted financial wire traffic today. When a Cryptographically Relevant Quantum Computer (CRQC) becomes operational, **Shor's algorithm** will calculate the private keys and recover the session keys of every archived handshake. **Every stored historic transaction, payment authorization, and account credential will become readable in cleartext.**
-
-```
-[ Client / Core Bank ] <========= TLS Tunnel (RSA / ECDH) =========> [ Ingress Gateway ]
-                                         │
-                              Captured Network Traffic
-                     (Harvest Now, Decrypt Later - HNDL)
-                                         │
-                                         ▼ (Quantum Era - Shor's Algorithm)
-                                PLAINTEXT FINANCIAL DATA
-```
-
-### 2. The Multi-Hop Blindspot: Channel Security vs Message Security
-TLS only encrypts the **connection pipe between two immediate network hops**, not the data itself:
-- **Middlebox Plaintext Exposure:** In modern cloud-native banking, TLS terminates at the first reverse proxy, WAF, or API gateway. Downstream traffic traverses internal microservices, proxies, and message brokers where payloads are decrypted.
-- **Asynchronous Message Pipelines:** Critical banking workflows (e.g., payment clearing and settlement) traverse asynchronous queues (Kafka, RabbitMQ, IBM MQ). TLS cannot protect data while resting in an intermediate message topic or long-term datastore.
-- **Why "Hybrid TLS" is Insufficient:** Swapping post-quantum certificates into TLS (Hybrid TLS 1.3) protects the socket pipe against quantum eavesdropping, but leaves data completely unprotected the moment the socket terminates at a gateway or enters an internal bus.
-
-```
-TRADITIONAL TLS:
-Client ──[TLS Encrypted]──► API Gateway ──[Plaintext / Internal Hop]──► Kafka ──[Plaintext]──► Settlement Node
-                              ▲                                           ▲
-                              └── Decrypted at boundary                   └── Exposed in transit/at rest
-
-QUANTUM SECURITY CAPSULE:
-Client ──[QSC Sealed Capsule]─────────────────────────────────────────────────────────────────► Settlement Node
-           └─ ML-KEM-768 Key Encapsulation + ML-DSA-65 Signature + AES-256-GCM Payload ─┘
-           (Protected across TLS hops, API gateways, Kafka queues, and proxies untouched)
-```
-
-### 3. The Paradigm Shift: The Autonomous Quantum Capsule
-The **Quantum Security Capsule (QSC)** shifts cryptographic boundaries from the *transient communication channel* into the *data payload itself*. Every payment instruction is transformed into an autonomous, tamper-evident, quantum-resistant digital capsule that:
-- **Remains Post-Quantum Secure Everywhere:** Protected with NIST FIPS 203 ([ML-KEM-768](src/crypto/kem.py)) and FIPS 204 ([ML-DSA-65](src/crypto/dsa.py)) end-to-end, across all intermediate network hops, clouds, and queues.
-- **Enforces Zero-Trust Validation:** Evaluated by a 5-stage validation gate that rejects malformed, expired, or replayed traffic in microseconds before invoking heavy cryptographic verification.
-- **Is Completely Transport-Agnostic:** Operates seamlessly over HTTPS/REST, gRPC, WebSocket, raw TCP, Kafka, MQ, SWIFT networks, or offline file containers (`.qsc`).
-
-### Comparison Matrix
-
-| Dimension | Legacy Transport Security (TLS 1.3 / mTLS) | Hybrid TLS (PQ-TLS) | Quantum Security Capsule (QSC) |
-| :--- | :--- | :--- | :--- |
-| **Protection Scope** | Channel / Socket pipe only | Channel / Socket pipe only | **The message payload itself** |
-| **HNDL Resistance** | Vulnerable (broken by Shor's) | Protected in transit only | **Protected end-to-end for decades** |
-| **Middlebox Exposure** | Decrypted at API gateway/proxy | Decrypted at API gateway/proxy | **Zero exposure** (stays sealed until receiver) |
-| **Async Queues (Kafka/MQ)** | No protection for data at rest | No protection for data at rest | **Cryptographically secure in any queue/store** |
-| **Replay Defense** | Socket-session bound | Socket-session bound | **Cryptographic per-message SHA3-512 token** |
-| **Non-Repudiation** | Connection endpoint only | Connection endpoint only | **Cryptographic ML-DSA-65 signature on wire payload** |
+The **Quantum Security Capsule** moves security from the channel to the message.
+Every payload becomes a self-contained, post-quantum encrypted, signed,
+time-bounded and tamper-evident capsule that is safe on any transport and at
+every intermediate hop.
 
 ---
 
@@ -256,8 +216,10 @@ python src/demo/benchmark.py
 | **07 Comparison & Roadmap** | Comparison with Hybrid TLS, PQ-VPNs, implementation roadmap | [docs/07_comparison_roadmap.md](docs/07_comparison_roadmap.md) |
 | **08 Presentation & Pitch** | Presentation materials, elevator pitch, 5-minute executive script | [docs/08_presentation.md](docs/08_presentation.md) |
 | **09 Feature Guide** | Every screen, button and script &mdash; what it does, why it exists, how to demo it | [docs/09_feature_guide.md](docs/09_feature_guide.md) |
-| **Web Pages & Features Guide** | Deep specification for each web page, feature mechanics, telemetry, and underlying theory | [docs/web_pages/README.md](docs/web_pages/README.md) |
 | **10 Progress Update** | Plain-language status summary for non-specialist readers | [docs/10_progress_update.md](docs/10_progress_update.md) |
+| **11 Live Showcase & Demo Guide** | Step-by-step speaker script, button sequence, 3D visualizer guide, TLS/API proof, and Q&A | [docs/11_presentation_showcase_guide.md](docs/11_presentation_showcase_guide.md) |
+| **Web Pages & Features Suite** | Deep specification for each web page, feature mechanics, telemetry, and underlying theory | [docs/web_pages/README.md](docs/web_pages/README.md) |
+
 
 ---
 

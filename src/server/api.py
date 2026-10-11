@@ -30,7 +30,11 @@ from src.capsule.wire import (
 )
 from src.crypto import compute_sha3_512, MLDSA65, MLKEM768
 from src.server import tls_config
+from src.server.windows_compat import apply_windows_asyncio_patch
 from src.server.payloads import AVAILABLE_PAYLOADS, build_payload
+
+apply_windows_asyncio_patch()
+
 
 API_VERSION = "1.0"
 SERVICE_NAME = "QSC Settlement Network"

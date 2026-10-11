@@ -17,6 +17,10 @@ import threading
 import uvicorn
 
 from src.server import tls_config
+from src.server.windows_compat import apply_windows_asyncio_patch
+
+apply_windows_asyncio_patch()
+
 
 
 def _serve(app_path: str, host: str, port: int, cert: str, key: str, label: str) -> None:
