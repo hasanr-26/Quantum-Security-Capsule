@@ -51,12 +51,19 @@ The 3D environment models a realistic multi-hop banking route connecting an Orig
 - **What it shows:** Active protection mode (`TLS 1.3 Transport` vs. `QSC Capsule`), current step phase (`idle`, `Key Generation`, `Transit`, `Settled`), and payload protection state (`plaintext in tunnel` vs. `sealed lattice crystal`).
 
 #### Module-Lattice Parameter HUD (Top Right)
-- **What it shows:** Live NIST FIPS 203 parameters:
-  - Ring: $\mathcal{R}_q = \mathbb{Z}_q[X]/(X^{256} + 1)$
-  - Modulus $q$: `3329`
-  - Module Rank $k$: `3`
-  - Ephemeral Shared Secret: `256 bits`
-- **Theory behind it:** Grounding in mathematics. Reminds evaluators that the visual crystal represents concrete polynomial ring algebra.
+- **What it shows:** Live NIST FIPS 203 parameters for ML-KEM-768:
+  - **Ring:** $\mathcal{R}_q = \mathbb{Z}_q[X]/(X^{256} + 1)$
+  - **Modulus $q$:** `3329`
+  - **Module Rank $k$:** `3`
+  - **Shared Secret:** `256 bit`
+
+| Line in HUD | Plain-English Meaning | Why It Is Chosen by NIST |
+| :--- | :--- | :--- |
+| **Ring $\mathbb{Z}_q[X]/(X^{256}+1)$** | **The Math Playground:** Instead of multiplying huge single numbers (like RSA), math is done on polynomials with 256 terms. When powers reach $X^{256}$, they wrap around ($X^{256} = -1$) like hands on a clock. | Keeps all keys and calculations strictly bounded to a compact, predictable memory size. |
+| **Modulus $q = 3329$** | **The Number Clock:** All numbers and coefficients wrap around when they hit `3329` (numbers always stay integers between `0` and `3328`). | `3329` is a prime number specifically chosen because it enables Number Theoretic Transform (NTT), running polynomial math in microseconds. |
+| **Module Rank $k = 3$** | **The Security Level (Dimensions):** Polynomials are bundled into a $3 \times 3$ grid. $k=2$ is ML-KEM-512, **$k=3$ is ML-KEM-768**, and $k=4$ is ML-KEM-1024. | Provides NIST Security Category 3 (equivalent to AES-192), giving optimal quantum hardness with minimal bandwidth overhead. |
+| **Shared Secret: 256 bit** | **The Encryption Prize:** The final 32-byte (256-bit) secret key derived safely by both parties through the lattice exchange. | Fed directly into HKDF-SHA3-512 to generate the AES-256-GCM symmetric key that encrypts the financial payload. |
+
 
 #### Status Banner (Bottom Left)
 - **DOM Element:** `#hud-status-text`
@@ -243,4 +250,36 @@ Shor’s algorithm does **not** directly solve this problem. The payment remains
 
 > **Main Takeaway:**  
 > TLS gets broken, but the payment stays encrypted. QSC Capsule adds another layer of protection, designed to withstand known quantum attacks, even if the outer TLS connection is compromised.
+
+---
+
+### Part 5: Explaining the "LATTICE PARAMETERS" Box (When Asked by Judges)
+
+When evaluating committees or judges point to the top-right box on the 3D screen:
+
+```
+LATTICE PARAMETERS
+Ring Z_q[X]/(X^256+1)
+Modulus q 3329
+Module rank k 3
+Shared secret 256 bit
+```
+
+**Here is what to say in simple English:**
+
+1. **"What is this box?"**  
+   *"This box displays the official NIST FIPS 203 parameters for our post-quantum algorithm, ML-KEM-768. It proves that our 3D visualizer is backed by real mathematical equations, not random mock numbers."*
+
+2. **Ring $\mathbb{Z}_q[X]/(X^{256}+1)$ (The Math Playground):**  
+   *"In classical crypto like RSA, math is done on huge single numbers. In post-quantum lattice cryptography, we do math on polynomials (equations with powers of $X$). The $X^{256}+1$ part means every polynomial has exactly 256 coefficients. Whenever powers reach 256, they wrap back around like a clock, keeping memory usage ultra-small and fast."*
+
+3. **Modulus $q = 3329$ (The Number Clock):**  
+   *"Just like an ordinary clock resets after 12, all numbers in ML-KEM wrap around when they reach 3329. NIST specifically chose 3329 because it's a prime number that allows computers to use the Number Theoretic Transform (NTT), which calculates multiplication in microseconds."*
+
+4. **Module rank $k = 3$ (The Security Dimension):**  
+   *"This is the security level knob. It means our polynomials are grouped into a $3 \times 3$ grid. $k=2$ is ML-KEM-512, $k=3$ is ML-KEM-768 (AES-192 equivalent), and $k=4$ is ML-KEM-1024. Rank 3 is NIST's recommended sweet spot for enterprise banking."*
+
+5. **Shared secret 256 bit (The Encryption Key):**  
+   *"This is the final 32-byte secret key agreed upon by both sides through the lattice exchange. Once both banks agree on this 256-bit secret, they feed it into AES-256-GCM to seal the financial transaction."*
+
 

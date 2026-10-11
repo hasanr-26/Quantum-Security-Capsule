@@ -230,9 +230,16 @@ Because the decryption key never touches the proxy. Only the final settlement no
 **Answer:**  
 It uses NIST's official post-quantum standards finalized in August 2024: **ML-KEM-768** (FIPS 203) for key exchange and **ML-DSA-65** (FIPS 204) for digital signatures.
 
-### 44. In simple terms, what is Lattice-based Cryptography?
+### 44. In simple terms, what is Lattice-based Cryptography and what do the "Lattice Parameters" on the 3D screen mean?
 **Answer:**  
-Instead of relying on prime numbers, it hides secrets inside high-dimensional geometric grids (lattices). Finding the closest point in a multidimensional lattice is mathematically impossible for both classical and quantum computers to solve quickly.
+Instead of relying on prime numbers (which quantum computers easily break), it hides secrets inside multidimensional geometric grids (lattices). Finding the secret point in a high-dimensional lattice is mathematically impossible for both classical and quantum computers to solve.
+
+The **Lattice Parameters** box in the 3D visualizer displays the NIST FIPS 203 settings for ML-KEM-768:
+- **Ring $\mathbb{Z}_q[X]/(X^{256}+1)$:** The mathematical rules where math is done on polynomials with 256 terms that wrap around like clock hands.
+- **Modulus $q = 3329$:** The number clock &mdash; all numbers wrap around at 3329, enabling ultra-fast microsecond multiplication.
+- **Module rank $k = 3$:** The security dimension ($3 \times 3$ polynomial grid) giving NIST Category 3 (AES-192 equivalent).
+- **Shared secret: 256 bit:** The final 32-byte secret key agreed upon by both sides, which is used to encrypt the payment with AES-256-GCM.
+
 
 ### 45. What is the difference between ML-KEM-768 and ML-DSA-65?
 **Answer:**  
