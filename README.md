@@ -219,6 +219,7 @@ python src/demo/benchmark.py
 | **10 Progress Update** | Plain-language status summary for non-specialist readers | [docs/10_progress_update.md](docs/10_progress_update.md) |
 | **11 Live Showcase & Demo Guide** | Step-by-step speaker script, button sequence, 3D visualizer guide, TLS/API proof, and Q&A | [docs/11_presentation_showcase_guide.md](docs/11_presentation_showcase_guide.md) |
 | **12 50 Presentation Q&A** | 50 simple English questions & answers across every tab, threat model, and architecture | [docs/12_presentation_50_qa.md](docs/12_presentation_50_qa.md) |
+| **13 Results & Telemetry Report** | Expected vs actual experimental results, runtime measurements, and contributing root causes | [docs/13_results.md](docs/13_results.md) |
 | **Web Pages & Features Suite** | Deep specification for each web page, feature mechanics, telemetry, and underlying theory | [docs/web_pages/README.md](docs/web_pages/README.md) |
 
 
