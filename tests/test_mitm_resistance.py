@@ -78,7 +78,9 @@ def test_capsule_body_contains_no_plaintext_payment_data(keyset, payment):
     wire = to_wire_bytes(capsule)
 
     for field in ("pan", "cvv", "cardholder", "merchant_id"):
-        secret = str(record[field]).encode()
+        # For short 3-digit values like CVV, check the quoted JSON value to avoid
+        # false-positive substring matches inside 6 KB of random Base64/hex bytes.
+        secret = f'"{record[field]}"'.encode() if field == "cvv" else str(record[field]).encode()
         assert secret not in wire, f"{field} leaked into the capsule wire format"
 
 
