@@ -25,12 +25,11 @@ The **Settlement Console** (Tab 01) is the core operational interface of the Qua
 ├──────────────────────────────────────────────────┼──────────────────────────────────────────────────┤
 │ • Message Standard (ISO 20022 / MT103 / Card)    │ • Stage 1: Protocol Version (QSC-1.0)     [~1 µs]│
 │ • Validity Window (TTL in seconds)               │ • Stage 2: Freshness Window (TTL Expiry)  [~7 µs]│
-│ • Policy Jurisdiction (UK / EU / US / IN)        │ • Stage 3: Replay Token (SHA3-512)        [~2 µs]│
-│ • [Rotate Keys]                                  │ • Stage 4: Integrity Lock (SHA3-512)     [~60 µs]│
-│ • [Build Capsule]                                │ • Stage 5: Origin Signature (ML-DSA-65)  [~17 ms]│
-│ • [Transmit & Settle]                            ├──────────────────────────────────────────────────┤
-│ • Network Route (Direct :8443 / Proxy :8444)     │ DECRYPTED PAYLOAD AT SETTLEMENT ENGINE           │
-│ • Current Capsule Metadata & Component Sizes     │ Plaintext ISO 20022 / MT103 Banking Instruction  │
+│ • [Rotate Keys]                                  │ • Stage 3: Replay Token (SHA3-512)        [~2 µs]│
+│ • [Build Capsule]                                │ • Stage 4: Integrity Lock (SHA3-512)     [~60 µs]│
+│ • [Transmit & Settle]                            │ • Stage 5: Origin Signature (ML-DSA-65)  [~17 ms]│
+│ • Network Route (Direct :8443 / Proxy :8444)     ├──────────────────────────────────────────────────┤
+│ • Current Capsule Metadata & Component Sizes     │ DECRYPTED PAYLOAD AT SETTLEMENT ENGINE           │
 │                                                  ├──────────────────────────────────────────────────┤
 │                                                  │ LIVE NETWORK CONSOLE                             │
 │                                                  │ Timestamp | POST /api/... | 200 | Wire ms | Srv ms│
@@ -63,16 +62,7 @@ The **Settlement Console** (Tab 01) is the core operational interface of the Qua
 
 ---
 
-### 3.3 Policy Jurisdiction Selector
-- **DOM Element:** `<select id="jurisdiction">` (Options: UK, EU, US, IN)
-- **What it does:** Binds regulatory territory governance into the capsule's policy metadata dictionary.
-- **What it shows:** Jurisdiction selection representing different regulatory regimes (Bank of England/FCA, ECB/TARGET2, Fed/CHIPS, RBI).
-- **How it works:** Stored in `PolicyMetadata.jurisdiction`. Crucially, this policy block is **included in the canonical serialization hashed by SHA3-512 at Step 7**.
-- **Theory behind it:** **Cryptographic Governance Binding.** In traditional cloud architectures, routing tags and governance flags reside in HTTP headers that proxies can tamper with unnoticed. In QSC, policy flags are mathematically sealed into the integrity digest &mdash; an unauthorized intermediary cannot alter the jurisdiction without triggering Stage 4 integrity failure.
-
----
-
-### 3.4 "Rotate Keys" Button
+### 3.3 "Rotate Keys" Button
 - **DOM Element:** `<button id="btn-keys">`
 - **What it does:** Generates a brand-new ML-KEM-768 keypair and ML-DSA-65 keypair on the settlement server.
 - **What it shows:** Updates key generation timings (`ml_kem_768_keygen_ms`, `ml_dsa_65_keygen_ms`) in the console, alters the ML-KEM fingerprint in the masthead, and invalidates previously built capsules.
@@ -81,7 +71,7 @@ The **Settlement Console** (Tab 01) is the core operational interface of the Qua
 
 ---
 
-### 3.5 "Build Capsule" Button
+### 3.4 "Build Capsule" Button
 - **DOM Element:** `<button id="btn-build" class="btn btn--primary">`
 - **What it does:** Triggers the server's full **8-step construction pipeline** to wrap the selected financial payload into a sealed Quantum Security Capsule.
 - **What it shows:** Populates the "Current Capsule" summary card with real metrics (Capsule ID, Payload Size, Wire Size, Expansion Ratio, KEM Ciphertext Bytes, Signature Bytes, Build Time in ms) and enables the "Transmit & Settle" button.
@@ -98,7 +88,7 @@ The **Settlement Console** (Tab 01) is the core operational interface of the Qua
 
 ---
 
-### 3.6 "Transmit & Settle" Button
+### 3.5 "Transmit & Settle" Button
 - **DOM Element:** `<button id="btn-settle" class="btn btn--go">`
 - **What it does:** Transmits the current capsule over HTTPS to the settlement engine, runs the 5-stage validation gate, decapsulates the key, decrypts the payload, and commits the settlement.
 - **What it shows:** Renders the live pass/fail status of all 5 validation gates with microsecond timings, displays the decrypted payload in green phosphor, increments the API request and capsule counters, and outputs wire latency telemetry.
@@ -107,7 +97,7 @@ The **Settlement Console** (Tab 01) is the core operational interface of the Qua
 
 ---
 
-### 3.7 Network Route Selector
+### 3.6 Network Route Selector
 - **DOM Element:** `<select id="route">`
   - `Direct to settlement node (:8443)`
   - `Via interception proxy (:8444)`

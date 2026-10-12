@@ -216,7 +216,7 @@
       payload_kind: $('payload-kind').value,
       policy: {
         classification: 'CONFIDENTIAL',
-        jurisdiction: $('jurisdiction').value,
+        jurisdiction: 'GLOBAL',
         max_hops: 3,
         ttl_seconds: Number($('ttl').value) || 300,
       },
