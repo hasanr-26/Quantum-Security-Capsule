@@ -3,16 +3,11 @@
 ```
 
 > "Financial wire transfers like ISO 20022 and SWIFT carry thirty-year liabilities. Today, adversaries harvest encrypted traffic to decrypt later with Shor's algorithm, while intermediate network proxies terminate TLS and expose that financial data in cleartext memory."
-
 *(Transition smoothly: "To solve this without replacing the network...")*
-
-
 
 > "We built the Quantum Security Capsule to provide message-centric post-quantum armor. We encapsulate payloads with NIST ML-KEM-768, sign with ML-DSA-65, and encrypt with AES-256-GCM—turning every transaction into a tamper-evident digital safe that traverses untrusted intermediaries completely sealed."
 
 *(Transition smoothly: "Looking at our empirical benchmarks...")*
-
-
 
 > "Benchmarking across one hundred runs shows our hybrid model adds modest overhead—an 89-millisecond handshake and ~138-millisecond end-to-end latency compared to classical TLS. In high-value wholesale settlement where transactions represent millions, this overhead is negligible. Crucially, QSC delivers mathematically proven post-quantum protection today across legacy middleboxes, with a clear path to sub-millisecond speeds via hardware acceleration."
 
