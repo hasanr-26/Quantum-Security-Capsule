@@ -148,8 +148,11 @@ def test_single_bit_flip_in_signature_is_caught_by_ml_dsa(keyset, payment):
     capsule = make_capsule(keyset, payment)
     wire = to_wire_bytes(capsule)
     offset = field_offsets(capsule)["signature"]["value_start"] + 40
+    bit = 2
+    if (wire[offset] ^ (1 << bit)) in (ord('"'), ord('\\')):
+        bit = 1
 
-    tampered = from_wire_bytes(flip_bit(wire, offset, bit=2))
+    tampered = from_wire_bytes(flip_bit(wire, offset, bit=bit))
     report = CapsuleValidator().validate_detailed(tampered, keyset["dsa_public"])
 
     assert report.accepted is False
