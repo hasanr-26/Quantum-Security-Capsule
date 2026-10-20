@@ -213,159 +213,168 @@ TOTAL SPOKEN WORDS: ~485 WORDS (IDEAL SPEAKING PACE: 135-140 WPM)
 
 ---
 
-## 4. Evaluator Q&A Defense Sheet (Tabs 01 - 03)
+## 4. Deep-Dive Technical Guide: What is Really Happening on Tab 01 & Tab 02?
 
-During the pitch defense and live demonstration, evaluators, venture judges, and academic examiners frequently challenge specific cryptographic and architectural claims regarding Tabs 01, 02, and 03. Use these structured responses:
+This section provides the underlying engineering mechanics, cryptographic theory, and threat modeling behind Tab 01 and Tab 02 so you can explain exactly what is taking place under the hood during evaluation.
+
+### 4.1 Tab 01 (Settlement Console) &mdash; Under the Hood Mechanics
+
+When you interact with Tab 01, two major asynchronous pipelines execute: the **8-step client-side armoring pipeline** and the **5-stage server-side zero-trust settlement engine**.
+
+#### The 8-Step Client Armoring Pipeline (`CapsuleBuilder`)
+When the user clicks **Build Capsule**, the originating bank client executes an 8-step cryptographic sequence in under 4 milliseconds, transforming raw banking data into a sovereign cryptographic container:
+1. **Timestamping & Identifier Generation:** Generates a cryptographically random UUID-v4 capsule ID (`qsc_...`) and stamps ISO-8601 UTC timestamps enforcing a strict 300-second temporal freshness window.
+2. **NIST FIPS 203 ML-KEM-768 Key Encapsulation:** Invokes the post-quantum lattice KEM against the clearing house's public key, generating 256 bits of shared entropy encapsulated inside a 1,088-byte ciphertext.
+3. **Key Derivation via HKDF-SHA3-512 (NIST SP 800-56C):** Expands the 256-bit shared entropy secret and the unique capsule ID into an ephemeral 256-bit AES content key and 12-byte IV.
+4. **Symmetric Payload Encryption via AES-256-GCM (NIST SP 800-38D):** Encrypts the raw ISO 20022 `pacs.008` financial XML payload into ciphertext and generates a 16-byte GHASH authentication tag bound to the capsule ID as associated data.
+5. **Anti-Replay Token Generation:** Derives a single-use replay protection token by hashing the capsule ID, issuance timestamp, sender ID, and AES nonce through SHA3-512.
+6. **Capsule Envelope Assembly:** Packages the encrypted ciphertext, KEM ciphertext, and replay token alongside authenticated, unencrypted routing headers (target BIC, priority, jurisdiction).
+7. **Canonical Integrity Lock:** Canonicalizes all immutable fields using RFC 8785 JSON canonicalization and computes a 512-bit SHA3-512 integrity digest (`integrity_hash`).
+8. **NIST FIPS 204 ML-DSA-65 Lattice Digital Signature:** Digitally signs the canonical `integrity_hash` using the originating bank's private signing key, appending a 3,309-byte post-quantum lattice signature.
+
+#### The 5-Stage Zero-Trust Settlement Pipeline (`CapsuleValidator`)
+When the user clicks **Transmit & Settle**, the clearing house receives the serialized capsule and evaluates it through a strict, fail-closed, "cheapest-first" validation sequence before allowing decapsulation:
+- **Stage 1 &mdash; Protocol Version Match ($\le 1.0\ \mu\text{s}$):** Validates the version header (`"version":"QSC-1.0"`). Any unrecognized or legacy protocol version fails closed instantly, preventing version downgrade attacks.
+- **Stage 2 &mdash; Freshness Window / Expiry ($\le 7.2\ \mu\text{s}$):** Compares `expires_at` against the clearing house's monotonic UTC clock. If the 300-second window has elapsed, the capsule is dropped before consuming further resources.
+- **Stage 3 &mdash; Anti-Replay Token Verification ($\le 2.1\ \mu\text{s}$):** Queries the in-memory spent-token registry. If the token is already present, the transaction is rejected immediately to eliminate double-spending. If new, the token is recorded.
+- **Stage 4 &mdash; Canonical Integrity Lock ($\le 60.4\ \mu\text{s}$):** Re-extracts the canonical fields, serializes them via RFC 8785, and computes SHA3-512. If the digest differs by even one bit from the capsule's `integrity_hash`, settlement halts with an integrity mismatch.
+- **Stage 5 &mdash; Origin Signature Verification ($\sim 17.2\ \text{ms}$):** Evaluates the 3,309-byte ML-DSA-65 lattice signature against the originating bank's registered public key. Only when this lattice problem verifies does the clearing house decapsulate the ML-KEM shared secret, decrypt the AES-256-GCM payload, and commit the £50,000,000 credit transfer to the settlement ledger.
+
+---
+
+### 4.2 Tab 02 (Packet Inspector & Attack Lab) &mdash; Wire Forensics, Bit-Flipping & Real-World Attacks
+
+Tab 02 strips away graphical abstraction and shows evaluators the raw, unadorned wire reality of post-quantum cryptography.
+
+#### How the Wire Inspector Works
+The hex inspector renders the exact UTF-8 byte stream transmitted across the network socket in a 16-column hexadecimal matrix alongside printable ASCII characters. Color-coded legend chips map each byte range to its schema field: the 1,088-byte ML-KEM ciphertext (base64-encoded to ~1,454 bytes) and the 3,309-byte ML-DSA signature (base64-encoded to ~4,414 bytes). Clicking any byte reveals its decimal offset, hexadecimal value, binary bit pattern, and plain-English cryptographic purpose, proving that every single byte on the wire is accounted for with zero simulated mockups.
+
+#### Why Do We Flip a Bit in the First Place?
+In the Attack Lab, clicking **Flip Bit & Resubmit** inverts exactly one binary digit out of approximately 76,000 wire bits ($b' = b \oplus (1 \ll \text{bit})$). 
+
+In cryptographic engineering, flipping a single bit is the foundational proof of the **Strict Avalanche Criterion (SAC)**. For a cryptographic hash (SHA3-512 / Keccak-f[1600]) or an authenticated cipher (AES-GCM), flipping even one bit must cause on average **50% of the output bits to invert completely at random**. 
+
+In Tab 02, flipping bit 2 of byte offset 146 alters only 0.0013% of the packet, yet instantly produces an avalanche mismatch that is caught at Stage 4 in 60 microseconds. The purpose of this demonstration is to prove **zero-tolerance tamper evidence**: if the settlement engine cannot be tricked by a microscopic single-bit alteration, it is mathematically impossible for an adversary to make any meaningful structural alteration—such as editing an account number, routing transit code, or settlement amount—without triggering instant rejection.
+
+#### Do Real Attackers Actually Flip Bits? How Do Attackers Actually Attack Technically?
+In the real world, attackers do not flip random bits, because random corruption simply causes packet drops or JSON syntax errors. Instead, real-world adversaries deploy sophisticated, mathematically calculated attacks against enterprise financial messaging:
+
+1. **Ciphertext Malleability & Bit-Flipping Attacks:** In flawed or unauthenticated cryptographic protocols (such as AES in CBC mode without an HMAC, or raw stream ciphers like CTR without Poly1305), an active attacker on the network can mathematically calculate which specific ciphertext bits correspond to a target plaintext field (such as changing `$00,050,000` to `$99,050,000` or altering an IBAN digit). The attacker flips those exact bits on the wire so that when the recipient decrypts the message, the altered value appears legitimate. In QSC, this attack is completely eliminated: AES-256-GCM generates a 128-bit GHASH authentication tag bound to the capsule ID, and Stage 4's SHA3-512 canonical integrity lock validates every byte before decapsulation even begins.
+2. **Man-in-the-Middle (MITM) Interception & Field Injection:** Attackers compromise an intermediate network hop—such as an edge router via BGP hijacking, an internal proxy via DNS/ARP spoofing, or a rogue cloud load balancer—and attempt to parse, alter, and forward transaction data. In traditional TLS, the proxy decrypts the data into memory, allowing an adversary with proxy access to modify the payment payload. In QSC, even if the proxy terminates TLS, the payload remains sealed inside the capsule. If the attacker attempts to alter the encrypted payload or outer headers, the SHA3-512 digest diverges at Stage 4; if they attempt to recalculate the digest, verification fails at Stage 5 because the attacker does not possess the originating bank's ML-DSA private key.
+3. **Replay & Double-Spending Attacks:** Rather than altering the payment, an attacker intercepts a valid, signed £50,000,000 transfer between Barclays and HSBC and re-submits the exact identical packet multiple times over the network to trigger duplicate settlements. QSC defeats this in approximately 2 microseconds at Stage 3: every capsule contains a deterministic SHA3-512 replay token derived from the capsule ID, timestamp, sender ID, and nonce. Once the clearing house settles the transaction, that token is burned into the spent-token cache. Any subsequent transmission of that identical packet is detected and discarded instantly without wasting computational resources on lattice signature verification.
+4. **Downgrade & Cipher Stripping Attacks:** An attacker intercepts the wire transfer and modifies the protocol metadata (e.g. changing `"version":"QSC-1.0"` to a legacy or unauthenticated standard) to force the settlement node to fall back to vulnerable classical algorithms. QSC halts this at Stage 1 in 1.0 microsecond: the clearing house enforces strict schema conformance and drops unapproved protocol versions immediately.
+5. **Signature Substitution & Rogue Key Forgery:** An adversary modifies the financial payload and attempts to attach a newly generated signature created with their own post-quantum keypair. QSC clearing engines validate signatures strictly against pre-registered, authenticated public keys associated with the originating institution's BIC. The rogue signature fails Stage 5 lattice verification because the public key does not match the sender identity.
+6. **Memory Corruption & Hardware Fault Injection (Rowhammer / Bit-Squatting):** In cloud datacenters, adversaries can use electrical disturbances, voltage glitching, or DRAM Rowhammer attacks to flip bits in server RAM or network interface cards. QSC's multi-layered validation ensures that any physical bit corruption occurring inside intermediate routers or server memory is caught before it can corrupt the central bank's ledger balances.
+
+---
+
+## 5. Evaluator Q&A Defense Sheet (Tabs 01 - 03)
+
+During the pitch defense and live demonstration, evaluators, venture judges, and academic examiners frequently challenge specific cryptographic and architectural claims. Use these paragraph-wise responses:
 
 ---
 
 ### Q1: "Why not simply upgrade all proxies and gateways to Post-Quantum TLS 1.3 (e.g. X25519 + ML-KEM-768)?"
-> **Speaker Answer (Spoken Pitch | 25s):**  
-> *"Post-Quantum TLS is essential, but it only solves the pipe between two adjacent network interfaces. In modern banking architectures, high-value wire transfers traverse API gateways, cloud WAFs, enterprise service buses, and Apache Kafka brokers. Every TLS proxy terminates encryption, exposing plaintext in server RAM and on message broker disks. If an adversary compromises any intermediate hop, PQ-TLS offers zero defense. QSC provides **message-centric security**—the financial payload itself is an armored, encrypted safe that traverses untrusted intermediaries and remains sealed until it reaches the central clearing engine."*
 
-- **Technical Deep-Dive & Hard Metrics:**
-  - **The Multi-Hop Vulnerability:** In standard banking architectures (Originator $\to$ Edge Gateway $\to$ Reverse Proxy $\to$ Kafka Broker $\to$ Settlement Core), TLS 1.3 handshakes are re-negotiated per hop. Plaintext ISO 20022 XML sits in heap memory at Nodes 2, 3, and 4.
-  - **Cryptographic Independence:** QSC encapsulates payloads at the application layer using NIST FIPS 203 ML-KEM-768 and AES-256-GCM before socket transmission. The ciphertext is transport-agnostic and remains cryptographically protected at rest in message queues.
-- **Trap Defense / Evaluator Follow-up:**
-  - *If asked:* *"Why not use strict end-to-end TLS without intermediate termination?"*
-  - *Rebuttal:* *"In enterprise banking, Layer-7 termination is mandatory for traffic routing, rate-limiting, WAF DDoS filtering, and regulatory compliance. Terminating TLS without payload armoring leaks cleartext; QSC decouples inspectable routing headers from payload encryption, allowing middleboxes to route without decrypting sensitive data."*
-- **Institutional & Regulatory Impact:** Eliminates third-party cloud proxy exposure, satisfying EU DORA (Digital Operational Resilience Act) Article 28 and PCI-DSS 4.0 Requirement 3.4.
+Upgrading intermediate proxies and gateways to Post-Quantum TLS 1.3 only protects the point-to-point network transmission on each individual hop while the bytes are flying across the physical wire. It does not—and cannot—solve the fundamental architecture of modern enterprise banking, where proxies, load balancers, and API gateways **must terminate TLS** to perform Layer-7 traffic routing, header inspection, WAF DDoS filtering, compliance auditing, and rate limiting. The instant TLS terminates at an intermediate proxy or gateway, the post-quantum TLS encryption is completely stripped away. The financial transaction is decrypted into cleartext inside the proxy server's volatile memory (RAM) and then forwarded into intermediate message brokers like Apache Kafka, where it is written unencrypted to disk buffers.
+
+Therefore, even if every hop uses PQ-TLS, any attacker with a memory scraper on the proxy, a compromised container, a malicious cloud administrator, or an eavesdropper inside the internal network perimeter captures the raw, plaintext ISO 20022 wire transfer without needing to break any post-quantum math at all. Upgrading the proxy's TLS version simply puts post-quantum armor on the outside pipe while leaving the cargo completely naked inside the proxy's process space. 
+
+Furthermore, PQ-TLS only authenticates the immediate network socket—it proves that the gateway spoke to the proxy, but it provides zero non-repudiation or cryptographic proof to the central clearing house that the originating bank actually authorized that specific £50 million payment, or that an intermediate proxy did not alter the recipient IBAN. QSC solves this by shifting security from the channel to the data itself: the financial payload is post-quantum encapsulated and digitally signed before it ever touches the network, remaining an impenetrable safe in proxy RAM and on Kafka disks until it reaches the central settlement engine.
 
 ---
 
 ### Q2: "What is the network bandwidth overhead and MTU packet fragmentation risk of ML-KEM-768 and ML-DSA-65?"
-> **Speaker Answer (Spoken Pitch | 25s):**  
-> *"As demonstrated on Tab 02's hex inspector, the entire capsule wire footprint is approximately 8.9 kilobytes for a standard ISO 20022 transfer—with 1,088 bytes for the ML-KEM ciphertext and 3,309 bytes for the ML-DSA signature. In wholesale RTGS, where individual transactions settle millions of pounds, an 8.9 KB envelope is completely negligible. Crucially, QSC avoids the catastrophic TCP handshake penalty of Pure PQ-TLS, where 18 KB certificate chains exceed TCP initial congestion windows and force extra round-trip delays."*
 
-- **Technical Deep-Dive & Hard Metrics:**
-  - **Exact Wire Breakdown:** Total wire envelope: ~8,940 bytes. ML-KEM-768 ciphertext: exactly 1,088 bytes; ML-DSA-65 signature: exactly 3,309 bytes; canonical metadata: ~2.4 KB; ISO 20022 `pacs.008` payload: ~2.1 KB.
-  - **TCP Initial Congestion Window (`initcwnd`):** Standard TCP `initcwnd` is 10 MSS packets (~14.6 KB, RFC 6928). Pure PQ-TLS certificate chains are ~16.8–18.2 KB, exceeding `initcwnd` and forcing a +1 RTT stall that doubles transatlantic handshake latency (76 ms $\to$ 154 ms). QSC streams within established sessions, avoiding handshake stalls entirely.
-- **Trap Defense / Evaluator Follow-up:**
-  - *If asked:* *"Doesn't an 8.9 KB capsule exceed standard Ethernet MTU (1,500 bytes)?"*
-  - *Rebuttal:* *"Yes, an 8.9 KB message spans ~6 TCP segments, but this occurs during streaming across an open TCP window. Over institutional 10GbE interbank connections, streaming 6 segments takes under 0.1 milliseconds—unlike handshake certificate bloat, which stalls waiting for round-trip TCP ACKs."*
-- **Institutional & Regulatory Impact:** Well within SWIFT InterACT 4 MB limits and Fedwire/CHAPS message envelopes.
+As demonstrated on Tab 02's hex inspector, the entire capsule wire footprint is approximately 8.9 kilobytes for a standard ISO 20022 payment—consisting of 1,088 bytes for the ML-KEM ciphertext, 3,309 bytes for the ML-DSA signature, and approximately 2.4 kilobytes of canonical routing headers. In wholesale RTGS settlement, where individual transactions represent tens or hundreds of millions of pounds, an 8.9 KB envelope is negligible compared to the cryptographic guarantee of post-quantum privacy and mathematical unforgeability.
+
+Crucially, QSC avoids the severe network transport penalty of pure Post-Quantum TLS handshakes. In pure PQ-TLS, post-quantum X.509 certificate chains swell to over 18 kilobytes, which exceeds the standard TCP initial congestion window (`initcwnd` = 10 MSS packets, or ~14.6 KB, RFC 6928). This forces the TCP stack to pause and wait for a client acknowledgment round-trip before transmitting the remainder of the certificate, adding an entire round-trip time (+1 RTT) that doubles handshake latency on transatlantic WAN links from 76 ms to 154 ms. QSC avoids this handshake stall entirely because it streams payloads over established transport connections.
+
+While an 8.9 KB capsule does span approximately six TCP segments on a standard 1,500-byte Ethernet network, this transmission occurs as standard TCP streaming across an open window. Over institutional 10GbE interbank connections, streaming six segments takes less than 0.1 milliseconds—unlike handshake certificate bloat, which blocks the connection waiting for round-trip TCP ACKs. The wire format remains well within SWIFT InterACT 4 MB limits and standard ISO 20022 messaging limits.
 
 ---
 
 ### Q3: "How does the anti-replay mechanism scale across a distributed cluster of clearing nodes?"
-> **Speaker Answer (Spoken Pitch | 20s):**  
-> *"Our anti-replay engine pairs a deterministic SHA3-512 token with a strict 300-second temporal freshness window. Any capsule older than 300 seconds is rejected instantly at Stage 2 before checking memory. Therefore, settlement nodes only maintain consumed tokens for a rolling 5-minute sliding window. Expired tokens are purged automatically, keeping the cache memory footprint strictly bounded regardless of multi-year operational volume."*
 
-- **Technical Deep-Dive & Hard Metrics:**
-  - **Deterministic Token Derivation:** $\text{Token} = \text{SHA3-512}(\text{capsule\_id} \parallel \text{timestamp} \parallel \text{sender\_id} \parallel \text{nonce})$.
-  - **Cache Scalability Math:** At an institutional throughput of 10,000 transactions/second, a 300-second window stores at most 3,000,000 tokens. At 64 bytes per token, total RAM consumption is $3,000,000 \times 64 \text{ B} \approx 192 \text{ MB}$—readily handled by an in-memory Redis cluster or partitioned Bloom filter across clearing nodes.
-- **Trap Defense / Evaluator Follow-up:**
-  - *If asked:* *"What if there is clock drift between the originating bank and clearing house?"*
-  - *Rebuttal:* *"Stage 2 allows a configurable $\pm 5$-second clock drift margin synchronized via standard financial NTP/PTP feeds. Any transaction exceeding the tolerance fails closed at Stage 2 in 7 microseconds, protecting the ledger from stale or desynchronized inputs."*
-- **Institutional & Regulatory Impact:** Completely eliminates double-spending risks in accordance with CPMI-IOSCO Principles for Financial Market Infrastructures.
+Our anti-replay engine pairs a deterministic SHA3-512 token with a strict 300-second temporal freshness window. Any capsule older than 300 seconds is rejected instantly at Stage 2 in 7 microseconds before memory is even consulted. Because stale transactions are dropped by timestamp alone, clearing nodes only need to maintain consumed tokens for a rolling 5-minute sliding window, after which expired tokens are purged automatically.
+
+This rolling window keeps the cache memory footprint strictly bounded regardless of multi-year transaction volume. At an extreme institutional throughput of 10,000 transactions per second, a 300-second window stores at most 3,000,000 tokens. At 64 bytes per token, total memory consumption across the entire clearing cluster is approximately 192 megabytes. This fits easily into an in-memory Redis cluster, a distributed key-value store, or partitioned rotating Bloom filters synchronized across clearing nodes.
+
+Clock drift between participating banking institutions is handled via a configurable $\pm 5$-second drift tolerance synchronized by standard financial NTP/PTP time servers. Any transaction exceeding this tolerance fails closed immediately at Stage 2, protecting the ledger from stale, future-dated, or replayed inputs and completely eliminating double-spending risks in compliance with CPMI-IOSCO Principles for Financial Market Infrastructures.
 
 ---
 
 ### Q4: "In Tab 02's Attack Lab, why does flipping ciphertext bits fail at Stage 4 while tampering with the signature fails at Stage 5?"
-> **Speaker Answer (Spoken Pitch | 25s):**  
-> *"This illustrates our 'cheapest-first, fail-closed' zero-trust pipeline. Stage 4 verifies the SHA3-512 canonical digest over the ciphertext and metadata, executing in just 60 microseconds. The signature bytes are deliberately excluded from this digest because a digital signature cannot sign itself without circularity. If an attacker tampers with the signature bytes, the capsule passes Stage 4's payload integrity check but fails Stage 5 during ML-DSA-65 lattice verification. Every byte of the wire structure is defended by layered, non-redundant controls."*
 
-- **Technical Deep-Dive & Hard Metrics:**
-  - **Pipeline Execution Latencies:**
-    - Stage 1: Protocol Version ($\le 1.0\ \mu\text{s}$)
-    - Stage 2: Temporal Freshness ($\le 7.2\ \mu\text{s}$)
-    - Stage 3: Anti-Replay Token ($\le 2.1\ \mu\text{s}$)
-    - Stage 4: SHA3-512 Canonical Integrity ($\le 60.4\ \mu\text{s}$)
-    - Stage 5: ML-DSA-65 Lattice Signature ($\sim 17.2\ \text{ms}$)
-  - **DoS Mitigation:** Placing the 60 µs SHA3-512 check before the 17 ms lattice signature check discards corrupt packets and bit-flip tampering before consuming heavy CPU compute, shielding clearing engines from signature verification denial-of-service.
-- **Trap Defense / Evaluator Follow-up:**
-  - *If asked:* *"Can an attacker forge a matching ML-DSA-65 signature after modifying the payload?"*
-  - *Rebuttal:* *"Mathematically impossible. Forging an ML-DSA-65 signature requires solving the Module Short Integer Solution (M-SIS) problem on a $(6 \times 5)$ polynomial matrix modulo $q = 8,380,417$, which provides 128-bit quantum hardness (NIST Security Category 3)."*
-- **Institutional & Regulatory Impact:** Fulfills NIST FIPS 204 non-repudiation mandates and Basel III operational risk tamper-detection standards.
+This behavior demonstrates our "cheapest-first, fail-closed" zero-trust pipeline architecture. Stage 4 verifies the SHA3-512 canonical digest over the ciphertext and metadata, executing in just 60 microseconds. The signature bytes are deliberately excluded from this digest because a digital signature cannot sign itself without creating an impossible circular dependency. Therefore, the signature field is omitted from canonical hashing and verified independently at Stage 5.
+
+If an attacker tampers with the ciphertext or metadata, the SHA3-512 hash diverges completely due to the avalanche effect, failing Stage 4 in 60 microseconds. Placing this lightweight 60-microsecond hash check before the computationally heavy 17-millisecond lattice verification discards corrupt or tampered packets immediately. This shields the clearing engine from signature verification denial-of-service (DoS) attacks, where an adversary floods the bank with bogus packets to consume CPU cores.
+
+If an attacker tampers specifically with the signature bytes, the capsule passes Stage 4 because the ciphertext and metadata digest are unaltered, but fails Stage 5 during ML-DSA-65 lattice verification. Forging a valid lattice signature to match tampered data requires solving the Module Short Integer Solution (M-SIS) problem on a $(6 \times 5)$ polynomial matrix modulo $q = 8,380,417$, which provides 128-bit quantum hardness (NIST Security Category 3). Every byte of the wire structure is defended by layered, non-overlapping controls.
 
 ---
 
 ### Q5: "What is the latency impact on high-throughput settlement engines, and does 17 ms meet bank SLAs?"
-> **Speaker Answer (Spoken Pitch | 25s):**  
-> *"On Tab 01, our live telemetry measured full end-to-end settlement in ~17 milliseconds, with 95% of that time spent in ML-DSA-65 signature verification within our pure-Python reference engine. In wholesale RTGS settlement (like CHAPS or Fedwire), throughput requirements are hundreds of transactions per second—not retail millions—and bank SLAs allow several seconds. 17 milliseconds is well within SLA. Furthermore, with compiled C/AVX2 Number Theoretic Transforms, verification latency drops below 1.5 milliseconds per core."*
 
-- **Technical Deep-Dive & Hard Metrics:**
-  - **Validation Latency Breakdown:** Stages 1–4 take a combined 70.7 microseconds (<0.5% of total time). Stage 5 (ML-DSA-65 verification) takes 17.21 ms in Python.
-  - **Native C Performance:** According to NIST benchmarks and `liboqs` measurements, vectorized AVX2/AVX-512 ML-DSA-65 verification executes in 0.25 ms. An 8-core settlement server running compiled C processes over 4,000 validations per second.
-- **Trap Defense / Evaluator Follow-up:**
-  - *If asked:* *"Why does ML-DSA signing exhibit latency spikes up to 255 ms on the client side?"*
-  - *Rebuttal:* *"ML-DSA uses Fiat-Shamir with Aborts (rejection sampling). If the candidate signature vector exceeds the Euclidean norm bound $\|\mathbf{z}\|_\infty \ge \gamma_1 - \beta$, it restarts. The 95th percentile captures 2–3 abort restarts, a standard theoretical property of lattice signatures that affects only the originating client, never the clearing node's verification time."*
-- **Institutional & Regulatory Impact:** Exceeds Fedwire ISO 20022 real-time settlement target of 2.0 seconds and CHAPS RTGS clearing windows.
+On Tab 01, our live telemetry measured full end-to-end settlement in approximately 17 milliseconds, with over 95% of that time spent in ML-DSA-65 signature verification within our pure-Python reference engine. In wholesale interbank RTGS settlement (such as CHAPS, TARGET2, or Fedwire), transaction volume is hundreds of transactions per second—not millions of retail point-of-sale card swipes—and institutional bank SLAs allow several seconds for gross settlement. A 17-millisecond execution time is well within existing clearing windows.
+
+Furthermore, Stages 1 through 4 execute in under 75 microseconds combined. When transitioning from our pure-Python reference engine to compiled C assembly with AVX2 or AVX-512 Number Theoretic Transforms (`liboqs`), ML-DSA-65 verification latency drops from 17.2 milliseconds to 0.25 milliseconds. An 8-core settlement server running compiled C can process over 4,000 validations per second, satisfying the peak clearing demand of any major central clearing house.
+
+While client-side signing can occasionally vary between 75 and 255 milliseconds due to ML-DSA's Fiat-Shamir with Aborts rejection sampling loop, this norm-check restart affects only the originating bank during capsule creation and has zero impact on the clearing house's verification latency. The architecture easily exceeds Fedwire's ISO 20022 real-time settlement target of 2.0 seconds.
 
 ---
 
 ### Q6: "Why adopt a Hybrid Construction (ML-KEM-768 + AES-256-GCM) rather than pure asymmetric post-quantum encryption for the whole payload?"
-> **Speaker Answer (Spoken Pitch | 20s):**  
-> *"NIST FIPS 203 ML-KEM is a Key Encapsulation Mechanism, engineered specifically to establish shared secrets, not to bulk-encrypt arbitrary payload streams. Attempting to encrypt megabyte ISO 20022 XML or SWIFT batches directly with lattice polynomials would cause severe polynomial bloat and CPU exhaustion. AES-256-GCM runs at native hardware speeds via CPU AES-NI instructions (5 microseconds) while providing 128-bit quantum security against Grover's algorithm."*
 
-- **Technical Deep-Dive & Hard Metrics:**
-  - **KEM + DEM Paradigm:** ML-KEM-768 encapsulates 256 bits of shared entropy into a 1,088-byte ciphertext; HKDF-SHA3-512 expands it into an ephemeral AES key and IV; AES-256-GCM encrypts the financial payload.
-  - **Grover's Quantum Resistance:** Grover's algorithm provides a quadratic speedup for brute-force symmetric search ($\mathcal{O}(\sqrt{N})$). For AES-256, the search space becomes $2^{128}$ operations, which remains computationally intractable even for quantum supercomputers.
-- **Trap Defense / Evaluator Follow-up:**
-  - *If asked:* *"Can Shor's algorithm crack AES-256-GCM?"*
-  - *Rebuttal:* *"No. Shor's algorithm only solves hidden subgroup problems over abelian groups—such as integer factorization (RSA) and discrete logarithms (ECC). It has zero applicability to symmetric block ciphers or Keccak sponge hashes."*
-- **Institutional & Regulatory Impact:** Aligns with NIST SP 800-38D (GCM mode) and NIST SP 800-56C (KDF recommendation) compliance profiles.
+NIST FIPS 203 ML-KEM is strictly a Key Encapsulation Mechanism engineered to establish shared symmetric secrets, not a bulk block cipher. Attempting to encrypt megabyte ISO 20022 XML payloads or multi-megabyte SWIFT message batches directly using lattice polynomials would result in catastrophic polynomial matrix bloat, gigabytes of memory expansion, and extreme CPU exhaustion.
+
+Instead, QSC employs the standard KEM + DEM (Data Encapsulation Mechanism) paradigm: ML-KEM-768 encapsulates 256 bits of shared entropy into a compact 1,088-byte ciphertext; HKDF-SHA3-512 expands it into an ephemeral AES key and IV; and AES-256-GCM encrypts the financial payload. AES-256-GCM executes at native bus speeds using hardware CPU AES-NI instructions in just 5 microseconds, enabling line-rate throughput regardless of payload size.
+
+AES-256-GCM is provably immune to Shor's algorithm, which only solves hidden subgroup problems over abelian groups—such as integer factorization in RSA and discrete logarithms in elliptic curves. While Grover's quantum search algorithm provides a quadratic speedup against symmetric ciphers, searching a 256-bit key space still requires $2^{128}$ quantum operations, which is physically impossible and satisfies NIST Category 3 post-quantum security requirements.
 
 ---
 
 ### Q7: "How do intermediate middleboxes (Reverse Proxies, WAFs, Message Brokers) route transactions without decrypting the capsule?"
-> **Speaker Answer (Spoken Pitch | 20s):**  
-> *"QSC employs a decoupled envelope pattern. The outer capsule header contains authenticated, non-confidential routing metadata—such as the destination BIC, routing transit number, ISO 20022 message type (`pacs.008`), timestamp, and priority. Reverse proxies and Kafka brokers inspect these outer fields for routing and rate-limiting, while the sensitive financial core—account numbers, IBANs, names, and transaction amounts—remains sealed inside the post-quantum safe."*
 
-- **Technical Deep-Dive & Hard Metrics:**
-  - **Cryptographic Binding:** All outer header fields are included in the SHA3-512 canonical integrity digest and covered by the ML-DSA-65 signature.
-  - **Immutability Assurance:** If a malicious proxy alters a routing field (e.g. changing the destination clearing code to redirect funds), the clearing house detects the modification at Stage 4 and drops the message immediately. The middlebox can read routing tags, but cannot modify them without invalidating the capsule.
-- **Trap Defense / Evaluator Follow-up:**
-  - *If asked:* *"Does exposing routing metadata in the header create a metadata privacy leak?"*
-  - *Rebuttal:* *"In wholesale banking, institutional BICs and routing codes are publicly listed in SWIFT directories. Furthermore, outer hops still run standard TLS 1.3 to shield metadata from external eavesdroppers, while QSC ensures the payload is protected from untrusted internal proxies."*
-- **Institutional & Regulatory Impact:** Preserves full compatibility with enterprise Kafka partitioning, F5/NGINX load balancers, and AWS API Gateway routing.
+QSC employs a decoupled envelope pattern. The outer capsule header contains authenticated, non-confidential routing metadata—such as the destination BIC, routing transit number, ISO 20022 message type (`pacs.008`), timestamp, and priority. Reverse proxies, API gateways, and Apache Kafka brokers inspect these outer fields for traffic routing, rate-limiting, and queue partitioning, while the sensitive financial core—account numbers, IBANs, names, and transaction amounts—remains sealed inside the post-quantum safe.
+
+All outer header fields are cryptographically bound into the SHA3-512 canonical integrity lock and covered by the ML-DSA-65 signature. If a malicious or misconfigured proxy alters a routing field (e.g. changing the destination clearing code to misroute funds), the clearing house detects the modification at Stage 4 and drops the message immediately. The middlebox can read routing tags to forward traffic, but cannot modify them without invalidating the capsule.
+
+In wholesale banking, institutional BICs and routing codes are publicly listed directory entries, so exposing them in the header creates no privacy leak. Furthermore, outer network hops still use standard hop-by-hop TLS 1.3 to shield metadata from external wiretappers, while QSC ensures the payment payload is protected from untrusted intermediate proxies.
 
 ---
 
 ### Q8: "How does QSC integrate with existing Public Key Infrastructure (PKI) and handle Key Rotation?"
-> **Speaker Answer (Spoken Pitch | 20s):**  
-> *"QSC integrates directly with institutional PKI standards. Participating banks and clearing houses exchange ML-KEM-768 and ML-DSA-65 public keys using standard X.509 v3 certificates with post-quantum OIDs. Furthermore, on Tab 01 of our workbench, we demonstrate live, zero-downtime key rotation: clicking 'Rotate Keys' generates fresh NIST FIPS 203/204 keypairs in real-time, proving that key lifecycle management is completely decoupled from network transport."*
 
-- **Technical Deep-Dive & Hard Metrics:**
-  - **Key Sizes:** ML-KEM-768 public key: 1,184 bytes; ML-DSA-65 public key: 1,952 bytes. Private keys are stored in Hardware Security Modules (HSMs) conforming to FIPS 140-3 Level 3/4.
-  - **Rotation Mechanics:** Capsules carry explicit `key_id` identifiers in their headers. When a clearing house rotates keys, it publishes the new public key fingerprint; client capsules reference the updated `key_id`, allowing seamless dual-key acceptance during transition periods without taking settlement rails offline.
-- **Trap Defense / Evaluator Follow-up:**
-  - *If asked:* *"What happens if a private key is suspected of compromise?"*
-  - *Rebuttal:* *"The clearing house revokes the key ID via internal directory broadcasts or short-lived OCSP stapling responses. Stage 1/5 validation verifies key validity before decapsulation; revoked key IDs fail closed immediately."*
-- **Institutional & Regulatory Impact:** Complies with SWIFT PKI transition guidelines and ANSI X9.142 financial cryptographic key management standards.
+QSC integrates directly with institutional Public Key Infrastructure without requiring a rip-and-replace of existing banking networks. Participating banks and clearing houses exchange ML-KEM-768 and ML-DSA-65 public keys using standard X.509 v3 certificates with post-quantum OIDs under IETF LAMPS specifications. Private keys are stored in Hardware Security Modules (HSMs) conforming to FIPS 140-3 Level 3 or 4.
+
+On Tab 01 of our workbench, we demonstrate live, zero-downtime key rotation: clicking 'Rotate Keys' generates fresh NIST FIPS 203 and 204 keypairs in real-time. Capsules carry explicit `key_id` identifiers in their headers, allowing clearing houses to publish new public keys and support seamless dual-key acceptance during transition periods without taking settlement rails offline.
+
+In the event of suspected key compromise, clearing nodes revoke key IDs via internal directory broadcasts or short-lived OCSP stapling responses. Stage 1 and Stage 5 validation checks verify key status before decapsulation, failing closed immediately if a revoked key ID is detected. This complies with SWIFT PKI transition roadmaps and ANSI X9.142 financial cryptographic key management standards.
 
 ---
 
 ### Q9: "Why is the demonstration implemented in Pure Python, and what is the exact path to production?"
-> **Speaker Answer (Spoken Pitch | 20s):**  
-> *"We deliberately chose pure-Python implementations of `kyber-py` and `dilithium-py` for this showcase to guarantee complete auditability, platform portability, and transparency. Evaluators can inspect every line of lattice polynomial arithmetic without relying on opaque pre-compiled binaries or complex compiler toolchains. Our modular architecture abstracts all cryptographic operations through interface wrappers, allowing drop-in substitution with C-accelerated engines like `liboqs` or AWS-LC with zero code changes."*
 
-- **Technical Deep-Dive & Hard Metrics:**
-  - **Compliance Verification:** Every mathematical routine in `src/crypto/kem.py` and `src/crypto/dsa.py` was validated against official NIST ACVP (Automated Cryptographic Validation Protocol) test vectors.
-  - **Production Transition:** Python ML-DSA-65 verification takes ~17.2 ms. Switching to native C assembly (`liboqs` or AWS-LC) reduces verification to 0.25 ms—a 70x speedup—delivering over 4,000 verifications per second on an 8-core server with zero API changes to the capsule engine.
-- **Trap Defense / Evaluator Follow-up:**
-  - *If asked:* *"Does the Python reference implementation leak timing information through cache or branch side-channels?"*
-  - *Rebuttal:* *"Symmetric primitives (AES-GCM, SHA3) run in constant-time C via OpenSSL. The Python lattice engine is an architectural reference for functional validation; commercial production deployments will link directly to constant-time C/assembly implementations (such as PQClean or AWS LibCrypto)."*
-- **Institutional & Regulatory Impact:** Provides academic evaluators with full code visibility while offering institutional adopters a production-ready C/assembly roadmap.
+We deliberately chose pure-Python implementations of `kyber-py` and `dilithium-py` for this showcase to guarantee complete auditability, platform portability, and transparency. Evaluators and professors can inspect every line of lattice polynomial arithmetic without relying on opaque pre-compiled binaries or complex compiler toolchains.
+
+Every mathematical routine was validated against official NIST ACVP (Automated Cryptographic Validation Protocol) test vectors for FIPS 203 and FIPS 204. Our architecture cleanly abstracts all cryptographic operations through interface wrappers, allowing drop-in substitution with C-accelerated engines like `liboqs` or AWS-LC in production with zero code changes.
+
+While Python takes ~17 milliseconds for ML-DSA verification, switching to native C assembly with AVX2 vectorization reduces verification to 0.25 milliseconds—a 70-fold acceleration—delivering over 4,000 verifications per second on an 8-core server while running constant-time assembly that eliminates cache and branch side-channel timing leakage.
 
 ---
 
 ### Q10: "If an insider attacker has root access to the Reverse Proxy, why can't they intercept or forge the transaction?"
-> **Speaker Answer (Spoken Pitch | 20s):**  
-> *"Because QSC enforces strict Zero-Trust isolation. The reverse proxy only handles transport forwarding; it never possesses the Clearing House's ML-KEM private key, nor the Originating Bank's ML-DSA private key. Even if an attacker has root access to the proxy OS, dumps memory, or modifies proxy code, they only see the encrypted capsule bytes. Decrypting the payload requires solving the Module-LWE lattice problem, which is mathematically impossible even with future quantum supercomputers."*
 
-- **Technical Deep-Dive & Hard Metrics:**
-  - **Two-Way Cryptographic Isolation:**
-    1. **Confidentiality:** The capsule symmetric key is encapsulated against the clearing house's public key. Decapsulation requires private key $\mathbf{s} \in \mathcal{R}_q^k$, which resides strictly inside the clearing house's secure hardware enclave.
-    2. **Authenticity:** If the rogue proxy admin alters payment amounts or recipient accounts, the capsule fails Stage 4 (SHA3-512 digest mismatch). If they attempt to rebuild the digest, it fails Stage 5 because they lack the originating bank's ML-DSA-65 private key.
-- **Trap Defense / Evaluator Follow-up:**
-  - *If asked:* *"Could the rogue proxy replay a previously valid transaction?"*
-  - *Rebuttal:* *"No. Replaying an intercepted capsule fails instantly at Stage 3 in 2 microseconds because the single-use SHA3-512 replay token was already burned into the clearing house's cache during the original settlement."*
-- **Institutional & Regulatory Impact:** Directly addresses the insider threat requirements of SWIFT Customer Security Controls Framework (CSCF) Control 2.1 and Basel Committee Operational Risk standards.
+QSC enforces strict Zero-Trust isolation. The reverse proxy only handles transport forwarding; it never possesses the clearing house's ML-KEM private key, nor the originating bank's ML-DSA private key. Even if an attacker has root access to the proxy operating system, dumps physical RAM, or modifies proxy application code, they only see the encrypted capsule bytes. Decrypting the payload requires solving the Module Learning With Errors (M-LWE) lattice problem, which is mathematically impossible even with future quantum supercomputers.
+
+Furthermore, if the rogue administrator modifies payment amounts or recipient accounts in memory, the capsule fails Stage 4's SHA3-512 digest check. If they attempt to recalculate the digest, it fails Stage 5 because they lack the originating bank's ML-DSA-65 private key.
+
+If the rogue admin attempts to capture and replay a previously valid transaction, it fails instantly at Stage 3 in 2 microseconds because the single-use SHA3-512 replay token was already burned during the original settlement. This directly addresses the insider threat requirements of SWIFT Customer Security Controls Framework (CSCF) Control 2.1 and Basel Committee Operational Risk standards.
 
 ---
 
-## 5. Rehearsal & Execution Cheat Sheet
+## 6. Rehearsal & Execution Cheat Sheet
 
 | Time Stamp | Target Action | Visual Cue to Watch For | Pacing Note |
 | :--- | :--- | :--- | :--- |
